@@ -25,7 +25,7 @@ public class FindReleaseInfo {
 	}
 	
 	public Map<String,LocalDate> getEveryReleaseFromGit() throws GitAPIException, IOException{
-		Git git = Git.init().setDirectory(new File("..\\..\\..\\..\\sources\\" + project)).call();
+		Git git = Git.init().setDirectory(new File("..\\..\\..\\sources\\" + project)).call();
 		List<Ref> tags = git.tagList().call();
 		
 		PersonIdent author;
@@ -57,6 +57,8 @@ public class FindReleaseInfo {
 			
 			releases.put(ref.getName().substring(18), cmDate.toInstant().atZone(zi).toLocalDate());
 		}
+		
+		git.close();
 		
 		return releases;
 	}

@@ -2,40 +2,29 @@ package main.java;
 
 import java.io.IOException;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
 import org.eclipse.jgit.api.errors.GitAPIException;
+import org.eclipse.jgit.revwalk.RevCommit;
 
 public class Main {
 	
-	public static void main(String[] args) throws GitAPIException, IOException{	
-		String project = "BOOKKEEPER";
+	private static String project = "BOOKKEEPER";
 	
-	    //Get releases to analyze
-		Map<String,LocalDate> releases = new FindReleaseInfo(project).getEveryReleaseFromGit();
-		releases = new OutputFiltering().removeReleases(releases);
+	public static void main(String[] args) throws GitAPIException, IOException{	
 		
-		//Order chronologically
-		LinkedHashMap<String, LocalDate> chronoReleases = new LinkedHashMap<>();	 
-		releases.entrySet().stream().sorted(Map.Entry.comparingByValue())
-					  .forEachOrdered(x -> chronoReleases.put(x.getKey(), x.getValue()));
+		FindReleaseInfo fir = new FindReleaseInfo(project);
+		Map<String,LocalDate> releaseDates = fir.getReleaseDates();
 		
-		//Create a map to accept java files
-		Map<String, List<String>> files = new LinkedHashMap<>();
-		Iterator<String> iter = chronoReleases.keySet().iterator();
-		while(iter.hasNext()) {
-			files.put(iter.next(), new ArrayList<>());
-		}
+		OutputManager om = new OutputManager();
+		releaseDates = om.removeRecentReleases(releaseDates);
+		
+		Map<RevCommit,LocalDate> commitDates = fir.getCommitDates(releaseDates);
+
+		Map<String,Map<RevCommit,LocalDate>> commitsByRelease = fir.retrieveCommitsByRelease(releaseDates, commitDates);
 		
 		//Populate map with file lists
-		files = new FindJavaFiles(project).getClassesForReleases(chronoReleases, files);
-		
-		files.forEach((k,v)->System.out.println(k + " - " + v.size()));
-		
+		FindJavaFiles fjf = new FindJavaFiles(project);
+		fjf.getClassesFromCommits(commitsByRelease);
 	}
-	
 }

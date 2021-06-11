@@ -1,3 +1,6 @@
-main\java\FindReleaseInfo.class
+main\java\FindJavaFiles.class
 main\java\Main.class
-main\java\OutputFiltering.class
+main\java\OutputManager.class
+main\java\FindReleaseInfo.class
+main\java\FindJavaFiles$1.class
+main\java\JavaFilesMetadata.class

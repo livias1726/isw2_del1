@@ -37,26 +37,29 @@ public class FileMetadata{
 		this.creation = new Pair<>(createCm, creationDate);
 		
 		this.releases = new ArrayList<>();
+		
 		this.releases.add(firstRel);
 	}
 	
 	public FileMetadata(FileMetadata src) {
-		FileMetadata newF = new FileMetadata(src.filename, src.creation.getKey(), src.creation.getValue());
+		this.filename = src.filename;
+		this.creation = new Pair<>(src.creation.getKey(),src.creation.getValue());
+		this.releases = new ArrayList<>();
 		
 		if(src.modifications != null) {
 			Iterator<RevCommit> modif = src.modifications.keySet().iterator();
 			RevCommit mod;
 			while(modif.hasNext()) {
 				mod = modif.next();
-				newF.addModification(mod, null, src.modifications.get(mod));
+				this.addModification(mod, null, src.modifications.get(mod));
 			}
 		}
 		
 		for(int i=0; i<src.releases.size(); i++) {
-			newF.addRelease(src.releases.get(i));
+			this.addRelease(src.releases.get(i));
 		}
 		
-		newF.setSize(src.size);
+		this.setSize(src.size);
 	}
 
 	//FILENAME

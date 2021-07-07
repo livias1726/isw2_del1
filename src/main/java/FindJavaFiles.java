@@ -28,7 +28,6 @@ import org.eclipse.jgit.util.io.DisabledOutputStream;
 
 import javafx.util.Pair;
 
-
 /*
  * Get releases list
  * 	For every release create a new list: file java in every commit for that release

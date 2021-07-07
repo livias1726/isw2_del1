@@ -37,5 +37,10 @@
   		<artifactId>org.eclipse.jgit</artifactId>
   		<version>3.5.0.201409260305-r</version>
   	</dependency>
+  	<dependency>
+	    <groupId>org.openjfx</groupId>
+	    <artifactId>javafx-base</artifactId>
+	    <version>16</version>
+	</dependency>
   </dependencies>
 </project>

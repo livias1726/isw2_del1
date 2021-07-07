@@ -51,9 +51,9 @@ public class FindReleaseInfo {
 	        
 	        RevCommit cm = logs.iterator().next();
 	        author = cm.getAuthorIdent();
-			cmDate = author.getWhen();	
+			cmDate = author.getWhen();
 			
-			releases.put(ref.getName().substring(18), cmDate.toInstant().atZone(zi).toLocalDate());
+			releases.put(ref.getName(), cmDate.toInstant().atZone(zi).toLocalDate());
 		}
 		
 		git.close();
@@ -128,7 +128,8 @@ public class FindReleaseInfo {
 			while(commits.hasNext()) {
 				com = commits.next();
 				cDate = chronoCommits.get(com);
-				if((rDate1 == null && (cDate.isBefore(rDate2) || cDate.isEqual(rDate2)))|| (rDate1 != null && cDate.isAfter(rDate1) && (cDate.isBefore(rDate2)) || cDate.isEqual(rDate2))) {
+				if((rDate1 == null && (cDate.isBefore(rDate2) || cDate.isEqual(rDate2))) 
+			    || (rDate1 != null && cDate.isAfter(rDate1) && (cDate.isBefore(rDate2)) || cDate.isEqual(rDate2))) {
 					cms.put(com, cDate);
 				}
 			}

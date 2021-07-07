@@ -15,6 +15,7 @@ import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.diff.DiffEntry;
 import org.eclipse.jgit.diff.DiffFormatter;
 import org.eclipse.jgit.diff.Edit;
+import org.eclipse.jgit.diff.Edit.Type;
 import org.eclipse.jgit.diff.RawTextComparator;
 import org.eclipse.jgit.lib.ObjectReader;
 import org.eclipse.jgit.patch.FileHeader;
@@ -25,6 +26,8 @@ import org.eclipse.jgit.treewalk.EmptyTreeIterator;
 import org.eclipse.jgit.treewalk.filter.PathSuffixFilter;
 import org.eclipse.jgit.util.io.DisabledOutputStream;
 
+import javafx.util.Pair;
+
 /*
  * Get releases list
  * 	For every release create a new list: file java in every commit for that release
@@ -32,11 +35,7 @@ import org.eclipse.jgit.util.io.DisabledOutputStream;
 public class FindJavaFiles {
 	
 	private String project;
-	
-	private static Map<RevCommit, List<JavaFilesMetadata>> addedFiles = new LinkedHashMap<>();
-	private static Map<RevCommit, List<JavaFilesMetadata>> modifiedFiles = new LinkedHashMap<>();
-	private static Map<RevCommit, List<JavaFilesMetadata>> deletedFiles = new LinkedHashMap<>();
-	private static Map<RevCommit, List<JavaFilesMetadata>> renamedFiles = new LinkedHashMap<>();
+	private Map<String, List<FileMetadata>> files = new LinkedHashMap<>();
 	
 	public FindJavaFiles(String projName) { 
 	    this.project = projName;
@@ -45,26 +44,25 @@ public class FindJavaFiles {
 	public void getClassesFromCommits(Map<String, Map<RevCommit, LocalDate>> commitsByRelease) throws GitAPIException, IOException {
 		Git git = Git.init().setDirectory(new File("..\\..\\..\\sources\\" + project)).call();
 		
-		Iterator<Map<RevCommit, LocalDate>> commits = commitsByRelease.values().iterator();		
-		Iterator<RevCommit> cmList;
-		Map<RevCommit, LocalDate> cm;
+		Iterator<String> releases = commitsByRelease.keySet().iterator();
+		Iterator<RevCommit> commits;
+		
 		RevCommit cmId1 = null;
 		RevCommit cmId2 = null;
-
-		
-		while(commits.hasNext()) {
-			cm = commits.next();
-			cmList = cm.keySet().iterator();
-			while(cmList.hasNext()) {
-				cmId2 = cmList.next();
-				getChangesFromCommit(git, cmId1, cmId2);
-				System.out.println(addedFiles.size() + " " + modifiedFiles.size() + " " + deletedFiles.size() + " " + renamedFiles.size());
+		String currRel;
+		while(releases.hasNext()) {
+			currRel = releases.next();
+			commits = commitsByRelease.get(currRel).keySet().iterator();
+			
+			while(commits.hasNext()) {
+				cmId2 = commits.next();
+				getChangesFromCommit(git, currRel, cmId1, cmId2);
 				cmId1 = cmId2;
 			}
 		}
 	}
 
-	private void getChangesFromCommit(Git git, RevCommit from, RevCommit to) throws IOException {
+	private void getChangesFromCommit(Git git, String release, RevCommit from, RevCommit to) throws IOException {
 		DiffFormatter diffFormatter = new DiffFormatter(DisabledOutputStream.INSTANCE);
 		diffFormatter.setRepository(git.getRepository());
 		diffFormatter.setDiffComparator(RawTextComparator.DEFAULT);
@@ -85,233 +83,161 @@ public class FindJavaFiles {
 		
 	    for (DiffEntry diff : diffs) {
 	    	switch(diff.getChangeType()) {
-		    	case ADD:
-		    	case COPY:
-		    		insertInAdded(to, diffFormatter, diff);
+	    		case ADD:
+		    		manageAddition(release, to, diffFormatter, diff);
 		    		break;
 		    	case MODIFY:
-		    		insertInModified(to, diffFormatter, diff);
-		    		break;
-		    	case DELETE:
-		    		insertInDeleted(to, diff);
+		    		manageModified(release, to, diffFormatter, diff);
 		    		break;
 		    	case RENAME:
-		    		insertInRenamed(to, diff);
+		    		removeAndAdd(release, diff);
 		    		break;
-		    	/*case COPY:
-		    		insertInCopied(to, diff);
-		    		break;*/
+		    	case COPY:
+		    		copyAndAdd(release, diff);
+		    		break;
+	    		default:
+	    			break;
 		    }
 	    }
 	}
 	
-	private void insertInAdded(RevCommit to, DiffFormatter df, DiffEntry diff) throws IOException {
+	private void manageAddition(String release, RevCommit to, DiffFormatter df, DiffEntry diff) throws IOException {
 		ZoneId zi = ZoneId.systemDefault();
-		JavaFilesMetadata f = new JavaFilesMetadata(diff.getNewPath(), to.getAuthorIdent().getWhen().toInstant().atZone(zi).toLocalDate());
+		LocalDate date = to.getAuthorIdent().getWhen().toInstant().atZone(zi).toLocalDate();
+		FileMetadata f;
 		
-		FileHeader fileHeader = df.toFileHeader(diff);
-		for(Edit edit: fileHeader.toEditList()) {
-			if((edit.getBeginA() == edit.getEndA()) && (edit.getBeginB() < edit.getEndB())) { //Insertion
-				f.setSize(edit.getEndB()-edit.getBeginB());
-			}
+		//Check existence
+		Pair<String,Integer> file = getFile(diff.getNewPath());		
+		if(file.getKey() != null /*&& !files.get(file.getKey()).get(file.getValue()).isDeleted()*/){
+			return;
 		}
 		
-		Iterator<RevCommit> iter = addedFiles.keySet().iterator();
+		f = new FileMetadata(diff.getNewPath(), release, to, date);		
+		
+		computeChanges(f, df, diff);
+		insert(release, f);
+	}
+	
+	private void manageModified(String release, RevCommit to, DiffFormatter df, DiffEntry diff) throws IOException {
+		//RETRIEVE
+		Pair<String,Integer> cm = getFile(diff.getNewPath());
+		
+		FileMetadata f;
+		ZoneId zi = ZoneId.systemDefault();	
+		LocalDate date = to.getAuthorIdent().getWhen().toInstant().atZone(zi).toLocalDate();
+		//LOG
+		if(cm.getKey() != null) {
+			f = new FileMetadata(files.get(cm.getKey()).get(cm.getValue()));
+			LocalDate lastMod = f.getLastModified();
+			if(lastMod == null || !lastMod.equals(date)) {
+				f.addModification(to, release, date);
+			}else {
+				return;
+			}					
+		}else {	
+			return;
+		}
+		
+		computeChanges(f, df, diff);
+		insert(release, f);
+	}
+	
+	private void removeAndAdd(String release, DiffEntry diff){
+		//RETRIEVE
+		Pair<String,Integer> cm = getFile(diff.getOldPath());
+		
+		FileMetadata f;
+		//LOG
+		if(cm.getKey() != null) {
+			f = new FileMetadata(files.get(cm.getKey()).get(cm.getValue()));
+			if(f.getFilename().equals(diff.getNewPath())) {
+				return;
+			}
+			f.setNewFilename(diff.getNewPath());			
+		}else {
+			return;
+		}
+		
+		insert(release, f);
+	}
+	
+	private void copyAndAdd(String release, DiffEntry diff) {
+		//RETRIEVE
+		Pair<String,Integer> cm = getFile(diff.getOldPath());
+		
+		FileMetadata f;
+		
+		//LOG
+		if(cm.getKey() != null) {
+			f = new FileMetadata(files.get(cm.getKey()).get(cm.getValue()));
+			if(f.getFilename().equals(diff.getNewPath())) {
+				return;
+			}
+			f.addCopy(diff.getNewPath());
+		}else {	
+			return;
+		}
+		
+		insert(release, f);
+	}
+	
+	private void insert(String release, FileMetadata file) {
+		Iterator<String> iter = files.keySet().iterator();
 		while(iter.hasNext()) {
-			if(to.equals(iter.next())) {
-				addedFiles.get(to).add(f);
+			if(release.equals(iter.next())) {
+				files.get(release).add(file);
 				return;
 			}
 		}
 		
-		List<JavaFilesMetadata> list = new ArrayList<>();
-		list.add(f);
-		addedFiles.put(to, list);
-	}
-	
-	private void insertInModified(RevCommit to, DiffFormatter df, DiffEntry diff) throws IOException {
-		
-		JavaFilesMetadata f = checkInModified(diff.getNewPath());	
-		if(f == null) {
-			f = checkInAdded(diff.getNewPath());
-		}
-		
-		ZoneId zi = ZoneId.systemDefault();
-		
-		if(f != null) {
-			f.setLastModified(to.getAuthorIdent().getWhen().toInstant().atZone(zi).toLocalDate());
-			
-			computeChanges(f, df, diff);
-			Iterator<RevCommit> iter = modifiedFiles.keySet().iterator();
-			while(iter.hasNext()) {
-				if(to.equals(iter.next())) {
-					modifiedFiles.get(to).add(f);
-					return;
-				}
-			}
-			
-			List<JavaFilesMetadata> list = new ArrayList<>();
-			list.add(f);
-			modifiedFiles.put(to, list);
-		}else {
-			throw new IOException("Added file not found");
-		}
+		List<FileMetadata> list = new ArrayList<>();
+		list.add(file);
+		files.put(release, list);
 	}
 
-	private void insertInDeleted(RevCommit to, DiffEntry diff) throws IOException {
-		JavaFilesMetadata f = checkInModified(diff.getOldPath());
-		if(f == null) {
-			f = checkInRenamed(diff.getOldPath());
-			if(f == null) {
-				f = checkInAdded(diff.getOldPath());
-			}
-		}
-		
-		ZoneId zi = ZoneId.systemDefault();
-		if(f != null) {
-			f.setDeletion(to.getAuthorIdent().getWhen().toInstant().atZone(zi).toLocalDate());
-			Iterator<RevCommit> iter = deletedFiles.keySet().iterator();
-			while(iter.hasNext()) {
-				if(to.equals(iter.next())) {
-					deletedFiles.get(to).add(f);
-					return;
-				}
-			}
-			
-			List<JavaFilesMetadata> list = new ArrayList<>();
-			list.add(f);
-			deletedFiles.put(to, list);
-		}else {
-			throw new IOException("File not found for deletion");
-		}
-		
-	}
-
-	private void insertInRenamed(RevCommit to, DiffEntry diff) throws IOException {		
-		JavaFilesMetadata f = checkInModified(diff.getOldPath());
-		if(f == null) {
-			f = checkInRenamed(diff.getOldPath());
-			if(f == null) {
-				f = checkInAdded(diff.getOldPath());
-			}
-		}
-		
-		if(f != null) {
-			f.addOldName(f.getFilename());
-			f.setFilename(diff.getNewPath());
-			Iterator<RevCommit> iter = renamedFiles.keySet().iterator();
-			while(iter.hasNext()) {
-				if(to.equals(iter.next())) {
-					renamedFiles.get(to).add(f);
-					return;
-				}
-			}
-			
-			List<JavaFilesMetadata> list = new ArrayList<>();
-			list.add(f);
-			renamedFiles.put(to, list);
-		}else {
-			throw new IOException("File not found for renaming");
-		}
-	}
-
-	/*private void insertInCopied(RevCommit to, DiffEntry diff) throws IOException {
-		JavaFilesMetadata f = checkInModified(diff.getOldPath());
-		if(f == null) {
-			f = checkInRenamed(diff.getOldPath());
-			if(f == null) {
-				f = checkInAdded(diff.getOldPath());
-			}
-		}
-		
-		if(f != null) {
-			f.setFilename(diff.getNewPath());
-			
-			Iterator<RevCommit> iter = addedFiles.keySet().iterator();
-			while(iter.hasNext()) {
-				if(to.equals(iter.next())) {
-					addedFiles.get(to).add(f);
-					return;
-				}
-			}
-			
-			List<JavaFilesMetadata> list = new ArrayList<>();
-			list.add(f);
-			addedFiles.put(to, list);
-		}else {
-			throw new IOException("File not found");
-		}
-	}*/
-
-	private void computeChanges(JavaFilesMetadata f, DiffFormatter df, DiffEntry diff) throws IOException {
+	private void computeChanges(FileMetadata f, DiffFormatter df, DiffEntry diff) throws IOException {
 		int size = f.getSize();
 		
 		FileHeader fileHeader = df.toFileHeader(diff);
 		for(Edit edit: fileHeader.toEditList()) {
-			if((edit.getBeginA() == edit.getEndA()) && (edit.getBeginB() < edit.getEndB())) { //Insertion
-				size = size + edit.getEndB()-edit.getBeginB();
+			if (edit.getType() == Type.INSERT) {
+				size = size + edit.getLengthB();
+			} else if (edit.getType() == Type.DELETE) {
+				size = size - edit.getLengthA();
+			} else if (edit.getType() == Type.REPLACE) {
+				size = size - edit.getLengthA();
+				size = size + edit.getLengthB();
 			}
-			
-			if((edit.getBeginA() < edit.getEndA()) && (edit.getBeginB() == edit.getEndB())) { //Remotion
-				size = size - (edit.getEndA()-edit.getBeginA());
-			}
-			
-			if((edit.getBeginA() < edit.getEndA()) && (edit.getBeginB() < edit.getEndB())) { //Replacement
-				//LOC TOUCHED
-			}
-			
-			f.setSize(size);
 		}
+		
+		f.setSize(size);
 	}
 
-	private JavaFilesMetadata checkInAdded(String filename) {
-		Iterator<RevCommit> iter = addedFiles.keySet().iterator();
-		JavaFilesMetadata ret = null;
-		RevCommit curr;
+	private Pair<String, Integer> getFile(String filename) {
+		Iterator<String> iter = files.keySet().iterator();
+		
+		int i = 0;
+		Integer idx = null;		
+		String rel = null;
+		String currRel;
 		
 		while(iter.hasNext()) {
-			curr = iter.next();
-			for(JavaFilesMetadata j: addedFiles.get(curr)) {
+			currRel = iter.next();			
+			for(FileMetadata j: files.get(currRel)) {
 				if(filename.equals(j.getFilename())) {
-					ret = j;
+					rel = currRel;
+					idx = i;
 				}
+				i++;
 			}
+			
+			i = 0;
 		}
 		
-		return ret;
-	}
-
-	private JavaFilesMetadata checkInModified(String filename) {
-		Iterator<RevCommit> iter = modifiedFiles.keySet().iterator();
-		JavaFilesMetadata ret = null;
-		RevCommit curr;
-		
-		while(iter.hasNext()) {
-			curr = iter.next();
-			for(JavaFilesMetadata j: modifiedFiles.get(curr)) {
-				if(filename.equals(j.getFilename())) {
-					ret = j;
-				}
-			}
-		}
-		
-		return ret;
+		return new Pair<>(rel, idx);
 	}
 	
-	private JavaFilesMetadata checkInRenamed(String filename) {
-		Iterator<RevCommit> iter = renamedFiles.keySet().iterator();
-		JavaFilesMetadata ret = null;
-		RevCommit curr;
-		
-		while(iter.hasNext()) {
-			curr = iter.next();
-			for(JavaFilesMetadata j: renamedFiles.get(curr)) {
-				if(filename.equals(j.getFilename())) {
-					ret = j;
-				}
-			}
-		}
-		
-		return ret;
+	public Map<String, List<FileMetadata>> getFiles(){
+		return files;
 	}
 }

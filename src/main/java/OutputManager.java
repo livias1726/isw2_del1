@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /*
@@ -28,5 +29,15 @@ public class OutputManager {
 		}
 		
 		return avRel;
+	}
+
+	public boolean alreadyAdded(List<FileMetadata> list, FileMetadata j) {
+		for(FileMetadata file: list) {
+			if(file.getFilename().equals(j.getFilename())) {
+				return true;
+			}
+		}
+		
+		return false;
 	}
 }

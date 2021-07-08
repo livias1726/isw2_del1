@@ -23,6 +23,7 @@ public class FileMetadata{
 	private int size;
 	private List<String> releases;
 	private int fixCounter;
+	private List<String> authors;
 	
 	private boolean renamed;
 
@@ -31,15 +32,18 @@ public class FileMetadata{
 		this.creation = new Pair<>(createCm, creationDate);
 		
 		this.releases = new ArrayList<>();
+		this.authors = new ArrayList<>();
 	}
 	
-	public FileMetadata(String filename, String firstRel, RevCommit createCm, LocalDate creationDate) {
+	public FileMetadata(String filename, String firstRel, RevCommit createCm, LocalDate creationDate, String auth) {
 		this.filename = filename;
 		this.creation = new Pair<>(createCm, creationDate);
 		
 		this.releases = new ArrayList<>();
+		this.authors = new ArrayList<>();
 		
 		this.releases.add(firstRel);
+		this.authors.add(auth);
 	}
 	
 	public FileMetadata(FileMetadata src) {
@@ -52,7 +56,7 @@ public class FileMetadata{
 			RevCommit mod;
 			while(modif.hasNext()) {
 				mod = modif.next();
-				this.addModification(mod, null, src.modifications.get(mod), false);
+				this.addModification(mod, null, src.modifications.get(mod), false, null);
 			}
 		}
 		
@@ -62,6 +66,10 @@ public class FileMetadata{
 		
 		this.setSize(src.size);
 		this.fixCounter = src.fixCounter;
+		
+		for(int i=0; i<src.authors.size(); i++) {
+			this.addAuthor(src.authors.get(i));
+		}
 	}
 
 	//FILENAME
@@ -88,7 +96,7 @@ public class FileMetadata{
 	}
 	
 	//MODIFICATIONS
-	public void addModification(RevCommit modCm, String release, LocalDate modDate, boolean fix) {
+	public void addModification(RevCommit modCm, String release, LocalDate modDate, boolean fix, String auth) {
 		if(this.modifications == null) {
 			this.modifications = new LinkedHashMap<>();
 		}
@@ -96,12 +104,16 @@ public class FileMetadata{
 		this.modifications.put(modCm, modDate);		
 		this.age = ChronoUnit.WEEKS.between(this.creation.getValue(), modDate);
 		
-		if(!this.releases.contains(release) && release != null) {
-			releases.add(release);
+		if(release != null && !this.releases.contains(release)) {
+			this.releases.add(release);
 		}
 		
 		if(fix) {
 			fixCounter++;
+		}
+		
+		if(auth != null && !this.authors.contains(auth)) {
+			this.authors.add(auth);
 		}
 	}
 	
@@ -131,10 +143,21 @@ public class FileMetadata{
 	private void addRelease(String r) {
 		this.releases.add(r);
 	}
+	
+	private void addAuthor(String pi) {
+		if(this.authors == null) {
+			this.authors = new ArrayList<>();
+		}
+		this.authors.add(pi);
+	}
 
 	//PARAMETERS
 	public int getNumberOfReleases() {
 		return this.releases.size();
+	}
+	
+	public int getNumberOfAuthors() {
+		return this.authors.size();
 	}
 	
 	public int getSize() {

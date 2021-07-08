@@ -18,6 +18,7 @@ import org.eclipse.jgit.diff.Edit;
 import org.eclipse.jgit.diff.Edit.Type;
 import org.eclipse.jgit.diff.RawTextComparator;
 import org.eclipse.jgit.lib.ObjectReader;
+import org.eclipse.jgit.lib.PersonIdent;
 import org.eclipse.jgit.patch.FileHeader;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.treewalk.AbstractTreeIterator;
@@ -121,7 +122,8 @@ public class FindJavaFiles {
 	
 	private void manageAddition(String release, RevCommit to, DiffFormatter df, DiffEntry diff) throws IOException {
 		ZoneId zi = ZoneId.systemDefault();
-		LocalDate date = to.getAuthorIdent().getWhen().toInstant().atZone(zi).toLocalDate();
+		PersonIdent pi = to.getAuthorIdent();
+		LocalDate date = pi.getWhen().toInstant().atZone(zi).toLocalDate();
 		FileMetadata f;
 		
 		//Check existence
@@ -130,7 +132,7 @@ public class FindJavaFiles {
 			return;
 		}
 		
-		f = new FileMetadata(diff.getNewPath(), release, to, date);		
+		f = new FileMetadata(diff.getNewPath(), release, to, date, pi.getName());		
 		
 		computeChanges(f, df, diff);
 		insert(release, f);
@@ -142,13 +144,14 @@ public class FindJavaFiles {
 		
 		FileMetadata f;
 		ZoneId zi = ZoneId.systemDefault();	
-		LocalDate date = to.getAuthorIdent().getWhen().toInstant().atZone(zi).toLocalDate();
+		PersonIdent pi = to.getAuthorIdent();
+		LocalDate date = pi.getWhen().toInstant().atZone(zi).toLocalDate();
 		//LOG
 		if(cm.getKey() != null) {
 			f = new FileMetadata(files.get(cm.getKey()).get(cm.getValue()));
 			LocalDate lastMod = f.getLastModified();
 			if(lastMod == null || !lastMod.equals(date)) {
-				f.addModification(to, release, date, fix);			
+				f.addModification(to, release, date, fix, pi.getName());			
 			}else {
 				return;
 			}					

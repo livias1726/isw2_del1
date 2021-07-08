@@ -36,9 +36,13 @@ public class FindJavaFiles {
 	
 	private String project;
 	private Map<String, List<FileMetadata>> files = new LinkedHashMap<>();
+	private List<RevCommit> fixCm;
+	private boolean fix;
 	
-	public FindJavaFiles(String projName) { 
+	public FindJavaFiles(String projName, List<RevCommit> fixes) { 
 	    this.project = projName;
+	    this.fixCm = fixes;
+	    this.fix = false;
 	}
 	
 	public void getClassesFromCommits(Map<String, Map<RevCommit, LocalDate>> commitsByRelease) throws GitAPIException, IOException {
@@ -55,11 +59,25 @@ public class FindJavaFiles {
 			commits = commitsByRelease.get(currRel).keySet().iterator();
 			
 			while(commits.hasNext()) {
-				cmId2 = commits.next();
+				cmId2 = commits.next();			
+				fix = markFixCommit(cmId2);
+				
 				getChangesFromCommit(git, currRel, cmId1, cmId2);
+				
+				fix = false;			
 				cmId1 = cmId2;
 			}
 		}
+	}
+
+	private boolean markFixCommit(RevCommit cmId2) {
+		for(RevCommit c: fixCm) {
+			if(c.equals(cmId2)) {
+				return true;
+			}
+		}
+		
+		return false;
 	}
 
 	private void getChangesFromCommit(Git git, String release, RevCommit from, RevCommit to) throws IOException {
@@ -130,7 +148,7 @@ public class FindJavaFiles {
 			f = new FileMetadata(files.get(cm.getKey()).get(cm.getValue()));
 			LocalDate lastMod = f.getLastModified();
 			if(lastMod == null || !lastMod.equals(date)) {
-				f.addModification(to, release, date);
+				f.addModification(to, release, date, fix);			
 			}else {
 				return;
 			}					

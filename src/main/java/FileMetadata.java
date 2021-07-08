@@ -22,6 +22,7 @@ public class FileMetadata{
 	private long age;
 	private int size;
 	private List<String> releases;
+	private int fixCounter;
 	
 	private boolean renamed;
 
@@ -51,7 +52,7 @@ public class FileMetadata{
 			RevCommit mod;
 			while(modif.hasNext()) {
 				mod = modif.next();
-				this.addModification(mod, null, src.modifications.get(mod));
+				this.addModification(mod, null, src.modifications.get(mod), false);
 			}
 		}
 		
@@ -60,6 +61,7 @@ public class FileMetadata{
 		}
 		
 		this.setSize(src.size);
+		this.fixCounter = src.fixCounter;
 	}
 
 	//FILENAME
@@ -86,7 +88,7 @@ public class FileMetadata{
 	}
 	
 	//MODIFICATIONS
-	public void addModification(RevCommit modCm, String release, LocalDate modDate) {
+	public void addModification(RevCommit modCm, String release, LocalDate modDate, boolean fix) {
 		if(this.modifications == null) {
 			this.modifications = new LinkedHashMap<>();
 		}
@@ -96,6 +98,10 @@ public class FileMetadata{
 		
 		if(!this.releases.contains(release) && release != null) {
 			releases.add(release);
+		}
+		
+		if(fix) {
+			fixCounter++;
 		}
 	}
 	
@@ -121,6 +127,10 @@ public class FileMetadata{
 		this.filename = filename;
 		this.renamed = true;
 	}
+	
+	private void addRelease(String r) {
+		this.releases.add(r);
+	}
 
 	//PARAMETERS
 	public int getNumberOfReleases() {
@@ -135,8 +145,7 @@ public class FileMetadata{
 		return age;
 	}
 
-	private void addRelease(String r) {
-		this.releases.add(r);
+	public int getFixes() {
+		return fixCounter;
 	}
-
 }

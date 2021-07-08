@@ -30,7 +30,7 @@ public class CSVManager {
     	
     	String path = project + ".csv";
     	try(FileWriter fw = new FileWriter(new File(path))){
-    		fw.append("Project;Version;Filename;Size;NR;Age");
+    		fw.append("Project;Version;Filename;Size;NR;NFix;Age");
     		fw.append("\n");
             
             String rel;
@@ -51,13 +51,13 @@ public class CSVManager {
     				fw.append(file.getFilename());
     				fw.append(";");
     				
-    				fw.append(file.getCreationDate().toString());
-    				fw.append(";");
-    				
     				fw.append(String.valueOf(file.getSize()));
     				fw.append(";");
     				
     				fw.append(String.valueOf(file.getNumberOfReleases()));   				
+    				fw.append(";");
+    				
+    				fw.append(String.valueOf(file.getFixes()));   				
     				fw.append(";");
     				
     				fw.append(String.valueOf(file.getAge()));

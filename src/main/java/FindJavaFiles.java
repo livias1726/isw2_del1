@@ -128,13 +128,13 @@ public class FindJavaFiles {
 		
 		//Check existence
 		Pair<String,Integer> file = getFile(diff.getNewPath());		
-		if(file.getKey() != null /*&& !files.get(file.getKey()).get(file.getValue()).isDeleted()*/){
+		if(file.getKey() != null){
 			return;
 		}
 		
 		f = new FileMetadata(diff.getNewPath(), release, to, date, pi.getName());		
 		
-		computeChanges(f, df, diff);
+		computeChanges(f, df, diff, release);
 		insert(release, f);
 	}
 	
@@ -159,7 +159,7 @@ public class FindJavaFiles {
 			return;
 		}
 		
-		computeChanges(f, df, diff);
+		computeChanges(f, df, diff, release);
 		insert(release, f);
 	}
 	
@@ -216,13 +216,14 @@ public class FindJavaFiles {
 		files.put(release, list);
 	}
 
-	private void computeChanges(FileMetadata f, DiffFormatter df, DiffEntry diff) throws IOException {
+	private void computeChanges(FileMetadata f, DiffFormatter df, DiffEntry diff, String release) throws IOException {
 		int size = f.getSize();
 		
 		FileHeader fileHeader = df.toFileHeader(diff);
 		for(Edit edit: fileHeader.toEditList()) {
 			if (edit.getType() == Type.INSERT) {
 				size = size + edit.getLengthB();
+				f.setLOCPerRevision(release, size);
 			} else if (edit.getType() == Type.DELETE) {
 				size = size - edit.getLengthA();
 			} else if (edit.getType() == Type.REPLACE) {

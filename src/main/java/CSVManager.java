@@ -30,16 +30,12 @@ public class CSVManager {
     	
     	String path = project + ".csv";
     	try(FileWriter fw = new FileWriter(new File(path))){
-    		fw.append("Project;Version;Filename;Size;NR;NFix;NAuth;Age");
+    		fw.append("Project;Version;Filename;Size;NR;NFix;NAuth;LOC added;AVG LOC added;Age");
     		fw.append("\n");
             
             String rel;
             while(iter.hasNext()) {
             	rel = iter.next();
-            	
-            	if(rel == null) {
-            		continue;
-            	}
             	
             	for(FileMetadata file: files.get(rel)) {
             		fw.append(project);
@@ -63,11 +59,19 @@ public class CSVManager {
     				fw.append(String.valueOf(file.getNumberOfAuthors()));   				
     				fw.append(";");
     				
+    				if(!file.getLOCPerRev().containsKey(rel)) {
+    					fw.append("0");
+    				}else {
+    					fw.append(String.valueOf(file.getLOCPerRev().get(rel)));
+    				}
+    				fw.append(";");
+    				
+    				fw.append(String.valueOf(file.getAvgLOC()));   				
+    				fw.append(";");
+    				
     				fw.append(String.valueOf(file.getAge()));
     				fw.append("\n");
             	}
-            	
-            	
     		}
     	}
     	

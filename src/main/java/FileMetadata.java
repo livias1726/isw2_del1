@@ -24,6 +24,7 @@ public class FileMetadata{
 	private List<String> releases;
 	private int fixCounter;
 	private List<String> authors;
+	private Map<String,Integer> locPerRev;
 	
 	private boolean renamed;
 
@@ -70,6 +71,8 @@ public class FileMetadata{
 		for(int i=0; i<src.authors.size(); i++) {
 			this.addAuthor(src.authors.get(i));
 		}
+		
+		this.locPerRev = src.locPerRev;
 	}
 
 	//FILENAME
@@ -150,6 +153,19 @@ public class FileMetadata{
 		}
 		this.authors.add(pi);
 	}
+	
+	public void setLOCPerRevision(String rev, int locAdded) {
+		if(locPerRev == null) {
+			locPerRev = new LinkedHashMap<>();
+		}
+		
+		if(locPerRev.containsKey(rev)) {
+			int loc = locPerRev.get(rev);
+			locPerRev.put(rev, loc + locAdded);
+		}else {
+			locPerRev.put(rev, locAdded);
+		}
+	}
 
 	//PARAMETERS
 	public int getNumberOfReleases() {
@@ -170,5 +186,20 @@ public class FileMetadata{
 
 	public int getFixes() {
 		return fixCounter;
+	}
+	
+	public Map<String,Integer> getLOCPerRev(){
+		return this.locPerRev;
+	}
+	
+	public int getAvgLOC() {
+		int totLoc = 0;
+		Iterator<Integer> loc = locPerRev.values().iterator();
+		while(loc.hasNext()) {
+			totLoc += loc.next();
+		}
+		
+		return totLoc/locPerRev.size();
+		
 	}
 }

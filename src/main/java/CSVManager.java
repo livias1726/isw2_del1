@@ -30,7 +30,10 @@ public class CSVManager {
     	
     	String path = project + ".csv";
     	try(FileWriter fw = new FileWriter(new File(path))){
-    		fw.append("Project;Version;Filename;Size;NR;NFix;NAuth;LOC added;AVG LOC added;Age");
+    		fw.append("Project;Version;Filename;"
+    				+ "Size;NR;NFix;NAuth;LOC added;AVG LOC added;"
+    				+ "Churn;AVG Churn;"
+    				+ "Age");
     		fw.append("\n");
             
             String rel;
@@ -67,6 +70,16 @@ public class CSVManager {
     				fw.append(";");
     				
     				fw.append(String.valueOf(file.getAvgLOC()));   				
+    				fw.append(";");
+    				
+    				if(!file.getChurnPerRev().containsKey(rel)) {
+    					fw.append("0");
+    				}else {
+    					fw.append(String.valueOf(file.getChurnPerRev().get(rel)));
+    				}
+    				fw.append(";");
+    				
+    				fw.append(String.valueOf(file.getAvgChurn()));   				
     				fw.append(";");
     				
     				fw.append(String.valueOf(file.getAge()));

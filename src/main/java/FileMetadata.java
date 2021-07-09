@@ -24,7 +24,8 @@ public class FileMetadata{
 	private List<String> releases;
 	private int fixCounter;
 	private List<String> authors;
-	private Map<String,Integer> locPerRev;
+	private Map<String,Integer> locAddedPerRev;
+	private Map<String,Integer> locRemovedPerRev;
 	
 	private boolean renamed;
 
@@ -72,7 +73,8 @@ public class FileMetadata{
 			this.addAuthor(src.authors.get(i));
 		}
 		
-		this.locPerRev = src.locPerRev;
+		this.locAddedPerRev = src.locAddedPerRev;
+		this.locRemovedPerRev = src.locRemovedPerRev;
 	}
 
 	//FILENAME
@@ -154,16 +156,29 @@ public class FileMetadata{
 		this.authors.add(pi);
 	}
 	
-	public void setLOCPerRevision(String rev, int locAdded) {
-		if(locPerRev == null) {
-			locPerRev = new LinkedHashMap<>();
+	public void addLOCPerRevision(String rev, int locAdded) {
+		if(locAddedPerRev == null) {
+			locAddedPerRev = new LinkedHashMap<>();
 		}
 		
-		if(locPerRev.containsKey(rev)) {
-			int loc = locPerRev.get(rev);
-			locPerRev.put(rev, loc + locAdded);
+		if(locAddedPerRev.containsKey(rev)) {
+			int loc = locAddedPerRev.get(rev);
+			locAddedPerRev.put(rev, loc + locAdded);
 		}else {
-			locPerRev.put(rev, locAdded);
+			locAddedPerRev.put(rev, locAdded);
+		}
+	}
+	
+	public void removeLOCPerRevision(String rev, int locRemoved) {
+		if(locRemovedPerRev == null) {
+			locRemovedPerRev = new LinkedHashMap<>();
+		}
+		
+		if(locRemovedPerRev.containsKey(rev)) {
+			int loc = locRemovedPerRev.get(rev);
+			locRemovedPerRev.put(rev, loc + locRemoved);
+		}else {
+			locRemovedPerRev.put(rev, locRemoved);
 		}
 	}
 
@@ -189,17 +204,66 @@ public class FileMetadata{
 	}
 	
 	public Map<String,Integer> getLOCPerRev(){
-		return this.locPerRev;
+		return this.locAddedPerRev;
 	}
 	
 	public int getAvgLOC() {
 		int totLoc = 0;
-		Iterator<Integer> loc = locPerRev.values().iterator();
+		Iterator<Integer> loc = locAddedPerRev.values().iterator();
 		while(loc.hasNext()) {
 			totLoc += loc.next();
 		}
 		
-		return totLoc/locPerRev.size();
+		return totLoc/locAddedPerRev.size();
+		
+	}
+	
+	public Map<String,Integer> getChurnPerRev(){
+		Map<String,Integer> churn = new LinkedHashMap<>();
+		
+		Iterator<String> relAdd = this.locAddedPerRev.keySet().iterator();
+		String currAdd;
+		
+		while(relAdd.hasNext()) {
+			currAdd = relAdd.next();
+			if(this.locRemovedPerRev != null && this.locRemovedPerRev.containsKey(currAdd)) {
+				churn.put(currAdd, this.locAddedPerRev.get(currAdd) + this.locRemovedPerRev.get(currAdd));
+			}else {
+				churn.put(currAdd, this.locAddedPerRev.get(currAdd));
+			}
+		}
+		
+		if(this.locRemovedPerRev == null) {
+			return churn;
+		}
+		
+		Iterator<String> relRem = this.locRemovedPerRev.keySet().iterator();
+		String currRem;
+			
+		while(relRem.hasNext()) {
+			currRem = relRem.next();
+			if(!churn.containsKey(currRem)) {
+				churn.put(currRem, this.locAddedPerRev.get(currRem));
+			}
+		}
+		
+		return churn;
+	}
+	
+	public int getAvgChurn() {
+		int totLoc = 0;
+		Map<String,Integer> churn = getChurnPerRev();
+		Iterator<Integer> loc = churn.values().iterator();
+		
+		while(loc.hasNext()) {
+			Integer i = loc.next();
+			if(i != null) {
+				totLoc += i;
+			}
+			
+		}
+		
+		return totLoc/churn.size();
 		
 	}
 }

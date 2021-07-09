@@ -223,12 +223,16 @@ public class FindJavaFiles {
 		for(Edit edit: fileHeader.toEditList()) {
 			if (edit.getType() == Type.INSERT) {
 				size = size + edit.getLengthB();
-				f.setLOCPerRevision(release, size);
+				f.addLOCPerRevision(release, edit.getLengthB());
 			} else if (edit.getType() == Type.DELETE) {
 				size = size - edit.getLengthA();
+				f.removeLOCPerRevision(release, edit.getLengthA());
 			} else if (edit.getType() == Type.REPLACE) {
 				size = size - edit.getLengthA();
-				size = size + edit.getLengthB();
+				f.removeLOCPerRevision(release, edit.getLengthA());
+				
+				size = size + edit.getLengthB();				
+				f.addLOCPerRevision(release, edit.getLengthB());
 			}
 		}
 		

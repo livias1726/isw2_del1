@@ -242,9 +242,11 @@ public class FileMetadata{
 			
 		while(relRem.hasNext()) {
 			currRem = relRem.next();
-			if(!churn.containsKey(currRem)) {
-				churn.put(currRem, this.locAddedPerRev.get(currRem));
-			}
+			
+			final String rel = currRem;
+			churn.computeIfAbsent(rel, 
+					f -> churn.put(rel, this.locRemovedPerRev.get(rel)));
+				
 		}
 		
 		return churn;

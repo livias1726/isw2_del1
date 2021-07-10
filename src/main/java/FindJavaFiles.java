@@ -40,6 +40,9 @@ public class FindJavaFiles {
 	private List<RevCommit> fixCm;
 	private boolean fix;
 	
+	private int chgSetSize = 0;
+	private List<FileMetadata> chgSet = new ArrayList<>();
+	
 	public FindJavaFiles(String projName, List<RevCommit> fixes) { 
 	    this.project = projName;
 	    this.fixCm = fixes;
@@ -55,6 +58,7 @@ public class FindJavaFiles {
 		RevCommit cmId1 = null;
 		RevCommit cmId2 = null;
 		String currRel;
+		
 		while(releases.hasNext()) {
 			currRel = releases.next();
 			commits = commitsByRelease.get(currRel).keySet().iterator();
@@ -64,6 +68,9 @@ public class FindJavaFiles {
 				fix = markFixCommit(cmId2);
 				
 				getChangesFromCommit(git, currRel, cmId1, cmId2);
+				
+				this.chgSet.clear();
+				this.chgSetSize = 0;
 				
 				fix = false;			
 				cmId1 = cmId2;
@@ -118,8 +125,16 @@ public class FindJavaFiles {
 	    			break;
 		    }
 	    }
+	    
+	    updateChgSet(release, to);
 	}
 	
+	private void updateChgSet(String release, RevCommit to) {
+		for(FileMetadata f: chgSet) {
+			f.addChgSetCommit(release, to, this.chgSetSize);
+		}
+	}
+
 	private void manageAddition(String release, RevCommit to, DiffFormatter df, DiffEntry diff) throws IOException {
 		ZoneId zi = ZoneId.systemDefault();
 		PersonIdent pi = to.getAuthorIdent();
@@ -132,10 +147,13 @@ public class FindJavaFiles {
 			return;
 		}
 		
-		f = new FileMetadata(diff.getNewPath(), release, to, date, pi.getName());		
+		f = new FileMetadata(diff.getNewPath(), release, to, date, pi.getName());
 		
 		computeChanges(f, df, diff, release);
 		insert(release, f);
+		
+		this.chgSetSize++;
+		this.chgSet.add(f);
 	}
 	
 	private void manageModified(String release, RevCommit to, DiffFormatter df, DiffEntry diff) throws IOException {
@@ -161,6 +179,9 @@ public class FindJavaFiles {
 		
 		computeChanges(f, df, diff, release);
 		insert(release, f);
+		
+		this.chgSetSize++;
+		this.chgSet.add(f);
 	}
 	
 	private void removeAndAdd(String release, DiffEntry diff){
@@ -180,6 +201,9 @@ public class FindJavaFiles {
 		}
 		
 		insert(release, f);
+		
+		this.chgSetSize++;
+		this.chgSet.add(f);
 	}
 	
 	private void copyAndAdd(String release, DiffEntry diff) {
@@ -200,6 +224,9 @@ public class FindJavaFiles {
 		}
 		
 		insert(release, f);
+		
+		this.chgSetSize++;
+		this.chgSet.add(f);
 	}
 	
 	private void insert(String release, FileMetadata file) {
@@ -224,9 +251,11 @@ public class FindJavaFiles {
 			if (edit.getType() == Type.INSERT) {
 				size = size + edit.getLengthB();
 				f.addLOCPerRevision(release, edit.getLengthB());
+				
 			} else if (edit.getType() == Type.DELETE) {
 				size = size - edit.getLengthA();
 				f.removeLOCPerRevision(release, edit.getLengthA());
+				
 			} else if (edit.getType() == Type.REPLACE) {
 				size = size - edit.getLengthA();
 				f.removeLOCPerRevision(release, edit.getLengthA());

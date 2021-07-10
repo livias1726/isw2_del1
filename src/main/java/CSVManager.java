@@ -33,7 +33,7 @@ public class CSVManager {
     	try(FileWriter fw = new FileWriter(new File(path))){
     		fw.append("Project;Version;Filename;"
     				+ "Size;NR;NFix;NAuth;LOC added;AVG LOC added;"
-    				+ "Churn;AVG Churn;"
+    				+ "Churn;AVG Churn;ChgSetSize;AVG ChgSet;"
     				+ "Age");
     		fw.append("\n");
             
@@ -81,6 +81,12 @@ public class CSVManager {
     				fw.append(";");
     				
     				fw.append(String.valueOf(file.getAvgChurn()));   				
+    				fw.append(";");
+    				
+    				fw.append(String.valueOf(file.getChgSetSize(rel)));   				
+    				fw.append(";");
+    				
+    				fw.append(String.valueOf(file.getAvgChgSetSize()));   				
     				fw.append(";");
     				
     				fw.append(String.valueOf(file.getAge()));

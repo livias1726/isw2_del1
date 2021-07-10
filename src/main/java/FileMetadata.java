@@ -3,6 +3,7 @@ package main.java;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -26,6 +27,7 @@ public class FileMetadata{
 	private List<String> authors;
 	private Map<String,Integer> locAddedPerRev;
 	private Map<String,Integer> locRemovedPerRev;
+	private Map<String, Map<RevCommit,Integer>> chgSet;
 	
 	private boolean renamed;
 
@@ -75,6 +77,7 @@ public class FileMetadata{
 		
 		this.locAddedPerRev = src.locAddedPerRev;
 		this.locRemovedPerRev = src.locRemovedPerRev;
+		this.chgSet = src.chgSet;
 	}
 
 	//FILENAME
@@ -181,6 +184,18 @@ public class FileMetadata{
 			locRemovedPerRev.put(rev, locRemoved);
 		}
 	}
+	
+	public void addChgSetCommit(String release, RevCommit cm, int numFiles) {
+		if(this.chgSet == null) {
+			this.chgSet = new HashMap<>();
+		}else if(this.chgSet.containsKey(release)){
+			this.chgSet.get(release).put(cm, numFiles-1); //-1 to exclude the file itself
+			return;
+		}
+		
+		this.chgSet.put(release, new HashMap<>());
+		this.chgSet.get(release).put(cm, numFiles-1);
+	}
 
 	//PARAMETERS
 	public int getNumberOfReleases() {
@@ -227,7 +242,7 @@ public class FileMetadata{
 		while(relAdd.hasNext()) {
 			currAdd = relAdd.next();
 			if(this.locRemovedPerRev != null && this.locRemovedPerRev.containsKey(currAdd)) {
-				churn.put(currAdd, this.locAddedPerRev.get(currAdd) + this.locRemovedPerRev.get(currAdd));
+				churn.put(currAdd, this.locAddedPerRev.get(currAdd) - this.locRemovedPerRev.get(currAdd));
 			}else {
 				churn.put(currAdd, this.locAddedPerRev.get(currAdd));
 			}
@@ -245,7 +260,7 @@ public class FileMetadata{
 			
 			final String rel = currRem;
 			churn.computeIfAbsent(rel, 
-					f -> churn.put(rel, this.locRemovedPerRev.get(rel)));
+					f -> churn.put(rel, -(this.locRemovedPerRev.get(rel))));
 				
 		}
 		
@@ -267,5 +282,49 @@ public class FileMetadata{
 		
 		return totLoc/churn.size();
 		
+	}
+	
+	public int getChgSetSize(String rel) {
+		int avgPerRel = 0;
+		int totCm = 0;
+		
+		if(!this.chgSet.containsKey(rel)) {
+			return 0;
+		}
+		
+		Iterator<RevCommit> iter = this.chgSet.get(rel).keySet().iterator();
+		while(iter.hasNext()) {
+			totCm++;
+			avgPerRel += this.chgSet.get(rel).get(iter.next());
+		}
+		
+		if(totCm != 0) {
+			return avgPerRel/totCm;
+		}else {
+			return 0;
+		}
+	}
+	
+	public int getAvgChgSetSize() {
+		int avg = 0;
+		int tot = 0;
+		
+		Iterator<String> iterRel = this.chgSet.keySet().iterator();
+		Iterator<RevCommit> iterCm;
+		String rel;
+		while(iterRel.hasNext()) {
+			rel = iterRel.next();
+			iterCm = this.chgSet.get(rel).keySet().iterator();
+			while(iterCm.hasNext()) {
+				tot++;
+				avg += this.chgSet.get(rel).get(iterCm.next());
+			}
+		}
+		
+		if(tot != 0) {
+			return avg/tot;
+		}else {
+			return 0;
+		}
 	}
 }

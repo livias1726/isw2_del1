@@ -32,12 +32,16 @@ public class CSVManager {
     	String path = project + ".csv";
     	try(FileWriter fw = new FileWriter(new File(path))){
     		fw.append("Project;Version;Filename;"
-    				+ "Size;NR;NFix;NAuth;LOC added;AVG LOC added;"
-    				+ "Churn;AVG Churn;ChgSetSize;AVG ChgSet;"
-    				+ "Age");
+    				+ "Size;LOC touched;NR;"
+    				+ "NFix;NAuth;LOC added;"
+    				+ "AVG LOC added;Churn;AVG Churn;"
+    				+ "ChgSetSize;AVG ChgSet;Age");
     		fw.append("\n");
             
             String rel;
+            Map<String,Integer> touched;
+            Map<String,Integer> added;
+            Map<String,Integer> churn;
             while(iter.hasNext()) {
             	rel = iter.next();
             	
@@ -54,6 +58,14 @@ public class CSVManager {
     				fw.append(String.valueOf(file.getSize()));
     				fw.append(";");
     				
+    				touched = file.getLOCTouchedPerRev();
+    				if(!touched.containsKey(rel)) {
+    					fw.append("0");
+    				}else {
+    					fw.append(String.valueOf(touched.get(rel)));
+    				}
+    				fw.append(";");
+    				
     				fw.append(String.valueOf(file.getNumberOfReleases()));   				
     				fw.append(";");
     				
@@ -63,20 +75,22 @@ public class CSVManager {
     				fw.append(String.valueOf(file.getNumberOfAuthors()));   				
     				fw.append(";");
     				
-    				if(!file.getLOCPerRev().containsKey(rel)) {
+    				added = file.getLOCAddedPerRev();
+    				if(!added.containsKey(rel)) {
     					fw.append("0");
     				}else {
-    					fw.append(String.valueOf(file.getLOCPerRev().get(rel)));
+    					fw.append(String.valueOf(added.get(rel)));
     				}
     				fw.append(";");
     				
-    				fw.append(String.valueOf(file.getAvgLOC()));   				
+    				fw.append(String.valueOf(file.getAvgLOCAdded()));   				
     				fw.append(";");
     				
-    				if(!file.getChurnPerRev().containsKey(rel)) {
+    				churn = file.getChurnPerRev(-1);
+    				if(!churn.containsKey(rel)) {
     					fw.append("0");
     				}else {
-    					fw.append(String.valueOf(file.getChurnPerRev().get(rel)));
+    					fw.append(String.valueOf(churn.get(rel)));
     				}
     				fw.append(";");
     				

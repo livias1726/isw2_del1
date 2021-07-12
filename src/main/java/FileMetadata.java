@@ -18,15 +18,18 @@ public class FileMetadata{
 	private String filename;	
 
 	private Pair<RevCommit, LocalDate> creation;	
-	private Map<RevCommit, LocalDate> modifications;
+	private Map<RevCommit, LocalDate> modifications = new LinkedHashMap<>();
 	
 	private long age;
 	private int size;
-	private List<String> releases;
+	private List<String> releases = new ArrayList<>();
 	private int fixCounter;
-	private List<String> authors;
-	private Map<String,Integer> locAddedPerRev;
-	private Map<String,Integer> locRemovedPerRev;
+	private List<String> authors = new ArrayList<>();
+	
+	private Map<String,Integer> locAddedPerRev = new LinkedHashMap<>();
+	private Map<String,Integer> locRemovedPerRev = new LinkedHashMap<>();
+	private Map<String,Integer> locModifiedPerRev = new LinkedHashMap<>();
+	
 	private Map<String, Map<RevCommit,Integer>> chgSet;
 	
 	private boolean renamed;
@@ -34,17 +37,11 @@ public class FileMetadata{
 	public FileMetadata(String filename, RevCommit createCm, LocalDate creationDate) {
 		this.filename = filename;
 		this.creation = new Pair<>(createCm, creationDate);
-		
-		this.releases = new ArrayList<>();
-		this.authors = new ArrayList<>();
 	}
 	
 	public FileMetadata(String filename, String firstRel, RevCommit createCm, LocalDate creationDate, String auth) {
 		this.filename = filename;
 		this.creation = new Pair<>(createCm, creationDate);
-		
-		this.releases = new ArrayList<>();
-		this.authors = new ArrayList<>();
 		
 		this.releases.add(firstRel);
 		this.authors.add(auth);
@@ -53,8 +50,31 @@ public class FileMetadata{
 	public FileMetadata(FileMetadata src) {
 		this.filename = src.filename;
 		this.creation = new Pair<>(src.creation.getKey(),src.creation.getValue());
-		this.releases = new ArrayList<>();
 		
+		//Size
+		this.setSize(src.size);
+		
+		//LOC touched + LOC added + AVG LOC added + Churn + AVG Churn
+		this.locAddedPerRev = src.locAddedPerRev;
+		this.locRemovedPerRev = src.locRemovedPerRev;
+		
+		//NR
+		for(int i=0; i<src.releases.size(); i++) {
+			this.addRelease(src.releases.get(i));
+		}
+		
+		//NFix
+		this.setFixNumber(src.fixCounter);
+		
+		//NAuth
+		for(int i=0; i<src.authors.size(); i++) {
+			this.addAuthor(src.authors.get(i));
+		}
+				
+		//ChgSetSize + AVG ChgSet -> fixed over same release/same file -> pass by reference
+		this.chgSet = src.chgSet;
+		
+		//WeightedAge
 		if(src.modifications != null) {
 			Iterator<RevCommit> modif = src.modifications.keySet().iterator();
 			RevCommit mod;
@@ -64,21 +84,9 @@ public class FileMetadata{
 			}
 		}
 		
-		for(int i=0; i<src.releases.size(); i++) {
-			this.addRelease(src.releases.get(i));
-		}
-		
-		this.setSize(src.size);
-		this.fixCounter = src.fixCounter;
-		
-		for(int i=0; i<src.authors.size(); i++) {
-			this.addAuthor(src.authors.get(i));
-		}
-		
-		this.locAddedPerRev = src.locAddedPerRev;
-		this.locRemovedPerRev = src.locRemovedPerRev;
-		this.chgSet = src.chgSet;
 	}
+	
+	//-----------------------------------------------------UTILS--------------------------------------------------
 
 	//FILENAME
 	public String getFilename() {
@@ -124,7 +132,7 @@ public class FileMetadata{
 			this.authors.add(auth);
 		}
 	}
-	
+
 	public LocalDate getLastModified() {
 		if(modifications == null) {
 			return null;
@@ -141,6 +149,10 @@ public class FileMetadata{
 	
 	public void setSize(int size) {
 		this.size = size;
+	}
+	
+	public void setFixNumber(int fix) {
+		this.fixCounter = fix;
 	}
 
 	public void addCopy(String filename) {
@@ -159,29 +171,27 @@ public class FileMetadata{
 		this.authors.add(pi);
 	}
 	
-	public void addLOCPerRevision(String rev, int locAdded) {
-		if(locAddedPerRev == null) {
-			locAddedPerRev = new LinkedHashMap<>();
+	public void setLOCPerRevision(String rev, int add, int map) {
+		Map<String,Integer> toSet;
+		switch(map) {
+			case 0:
+				toSet = this.locAddedPerRev;
+				break;
+			case 1:
+				toSet = this.locRemovedPerRev;
+				break;
+			case 2:
+				toSet = this.locModifiedPerRev;
+				break;
+			default:
+				return;
 		}
 		
-		if(locAddedPerRev.containsKey(rev)) {
-			int loc = locAddedPerRev.get(rev);
-			locAddedPerRev.put(rev, loc + locAdded);
+		if(toSet.containsKey(rev)) {
+			int loc = toSet.get(rev);
+			toSet.put(rev, loc + add);
 		}else {
-			locAddedPerRev.put(rev, locAdded);
-		}
-	}
-	
-	public void removeLOCPerRevision(String rev, int locRemoved) {
-		if(locRemovedPerRev == null) {
-			locRemovedPerRev = new LinkedHashMap<>();
-		}
-		
-		if(locRemovedPerRev.containsKey(rev)) {
-			int loc = locRemovedPerRev.get(rev);
-			locRemovedPerRev.put(rev, loc + locRemoved);
-		}else {
-			locRemovedPerRev.put(rev, locRemoved);
+			toSet.put(rev, add);
 		}
 	}
 	
@@ -197,32 +207,59 @@ public class FileMetadata{
 		this.chgSet.get(release).put(cm, numFiles-1);
 	}
 
-	//PARAMETERS
-	public int getNumberOfReleases() {
-		return this.releases.size();
-	}
+	//----------------------------------------------FEATURES-----------------------------------------------------
 	
-	public int getNumberOfAuthors() {
-		return this.authors.size();
-	}
-	
+	//Size
 	public int getSize() {
 		return size;
 	}
+			
+	//LOC touched		
+	public Map<String,Integer> getLOCTouchedPerRev(){
+		Map<String,Integer> locTouched = getChurnPerRev(1);
+		if(this.locModifiedPerRev == null) {
+			return locTouched;
+		}
+		
+		Iterator<String> rel = this.locModifiedPerRev.keySet().iterator();
+		String curr;
+		int base;
+			
+		while(rel.hasNext()) {
+			curr = rel.next();
+			
+			if(locTouched.containsKey(curr)) {
+				base = locTouched.get(curr);
+				locTouched.put(curr, base + (this.locModifiedPerRev.get(curr)));
+			}else {
+				locTouched.put(curr, this.locModifiedPerRev.get(curr));
+			}	
+		}
+		
+		return locTouched;
+	}
 	
-	public long getAge() {
-		return age;
+	//NR
+	public int getNumberOfReleases() {
+		return this.releases.size();
 	}
 
+	//NFix
 	public int getFixes() {
 		return fixCounter;
 	}
-	
-	public Map<String,Integer> getLOCPerRev(){
+			
+	//NAuth
+	public int getNumberOfAuthors() {
+		return this.authors.size();
+	}
+			
+	//LOC added + AVG LOC added
+	public Map<String,Integer> getLOCAddedPerRev(){
 		return this.locAddedPerRev;
 	}
 	
-	public int getAvgLOC() {
+	public int getAvgLOCAdded() {
 		int totLoc = 0;
 		Iterator<Integer> loc = locAddedPerRev.values().iterator();
 		while(loc.hasNext()) {
@@ -232,8 +269,9 @@ public class FileMetadata{
 		return totLoc/locAddedPerRev.size();
 		
 	}
-	
-	public Map<String,Integer> getChurnPerRev(){
+			
+	//Churn + AVG Churn
+	public Map<String,Integer> getChurnPerRev(int i){
 		Map<String,Integer> churn = new LinkedHashMap<>();
 		
 		Iterator<String> relAdd = this.locAddedPerRev.keySet().iterator();
@@ -242,7 +280,7 @@ public class FileMetadata{
 		while(relAdd.hasNext()) {
 			currAdd = relAdd.next();
 			if(this.locRemovedPerRev != null && this.locRemovedPerRev.containsKey(currAdd)) {
-				churn.put(currAdd, this.locAddedPerRev.get(currAdd) - this.locRemovedPerRev.get(currAdd));
+				churn.put(currAdd, this.locAddedPerRev.get(currAdd) + i*(this.locRemovedPerRev.get(currAdd)));
 			}else {
 				churn.put(currAdd, this.locAddedPerRev.get(currAdd));
 			}
@@ -260,7 +298,7 @@ public class FileMetadata{
 			
 			final String rel = currRem;
 			churn.computeIfAbsent(rel, 
-					f -> churn.put(rel, -(this.locRemovedPerRev.get(rel))));
+					f -> churn.put(rel, i*(this.locRemovedPerRev.get(rel))));
 				
 		}
 		
@@ -269,7 +307,7 @@ public class FileMetadata{
 	
 	public int getAvgChurn() {
 		int totLoc = 0;
-		Map<String,Integer> churn = getChurnPerRev();
+		Map<String,Integer> churn = getChurnPerRev(-1);
 		Iterator<Integer> loc = churn.values().iterator();
 		
 		while(loc.hasNext()) {
@@ -283,7 +321,8 @@ public class FileMetadata{
 		return totLoc/churn.size();
 		
 	}
-	
+					
+	//ChgSetSize + AVG ChgSet
 	public int getChgSetSize(String rel) {
 		int avgPerRel = 0;
 		int totCm = 0;
@@ -326,5 +365,10 @@ public class FileMetadata{
 		}else {
 			return 0;
 		}
+	}
+			
+	//WeightedAge
+	public long getAge() {
+		return age;
 	}
 }

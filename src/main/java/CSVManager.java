@@ -7,7 +7,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-
 /*SINGLETON*/
 public class CSVManager {
 	
@@ -35,75 +34,38 @@ public class CSVManager {
     				+ "Size;LOC touched;NR;"
     				+ "NFix;NAuth;LOC added;"
     				+ "AVG LOC added;Churn;AVG Churn;"
-    				+ "ChgSetSize;AVG ChgSet;Age");
+    				+ "ChgSetSize;AVG ChgSet;Age;"
+    				+ "Buggy");
     		fw.append("\n");
             
             String rel;
-            Map<String,Integer> touched;
-            Map<String,Integer> added;
-            Map<String,Integer> churn;
+            
             while(iter.hasNext()) {
             	rel = iter.next();
             	
             	for(FileMetadata file: files.get(rel)) {
-            		fw.append(project);
-    				fw.append(";");
+            		fw.append(project + ";");
+            		fw.append(rel + ";");
+    				fw.append(file.getFilename() + ";");
+    				fw.append(String.valueOf(file.getSize()) + ";");
     				
-            		fw.append(rel);
-    				fw.append(";");
+    				putLOCInfo(fw, rel, file.getLOCTouchedPerRev());
     				
-    				fw.append(file.getFilename());
-    				fw.append(";");
+    				fw.append(String.valueOf(file.getNumberOfReleases()) + ";");
+    				fw.append(String.valueOf(file.getFixes()) + ";");
+    				fw.append(String.valueOf(file.getNumberOfAuthors()) + ";");
     				
-    				fw.append(String.valueOf(file.getSize()));
-    				fw.append(";");
+    				putLOCInfo(fw, rel, file.getLOCAddedPerRev());
+    				fw.append(String.valueOf(file.getAvgLOCAdded()) + ";");
+    				putLOCInfo(fw, rel, file.getChurnPerRev());
+    				fw.append(String.valueOf(file.getAvgChurn()) + ";");
     				
-    				touched = file.getLOCTouchedPerRev();
-    				if(!touched.containsKey(rel)) {
-    					fw.append("0");
-    				}else {
-    					fw.append(String.valueOf(touched.get(rel)));
-    				}
-    				fw.append(";");
+    				fw.append(String.valueOf(file.getChgSetSize(rel)) + ";");
+    				fw.append(String.valueOf(file.getAvgChgSetSize()) + ";"); 
+    				fw.append(String.valueOf(file.getAge()) + ";");
     				
-    				fw.append(String.valueOf(file.getNumberOfReleases()));   				
-    				fw.append(";");
+    				putBuggynessInfo(fw, file.getBuggyness().get(rel));
     				
-    				fw.append(String.valueOf(file.getFixes()));   				
-    				fw.append(";");
-    				
-    				fw.append(String.valueOf(file.getNumberOfAuthors()));   				
-    				fw.append(";");
-    				
-    				added = file.getLOCAddedPerRev();
-    				if(!added.containsKey(rel)) {
-    					fw.append("0");
-    				}else {
-    					fw.append(String.valueOf(added.get(rel)));
-    				}
-    				fw.append(";");
-    				
-    				fw.append(String.valueOf(file.getAvgLOCAdded()));   				
-    				fw.append(";");
-    				
-    				churn = file.getChurnPerRev(-1);
-    				if(!churn.containsKey(rel)) {
-    					fw.append("0");
-    				}else {
-    					fw.append(String.valueOf(churn.get(rel)));
-    				}
-    				fw.append(";");
-    				
-    				fw.append(String.valueOf(file.getAvgChurn()));   				
-    				fw.append(";");
-    				
-    				fw.append(String.valueOf(file.getChgSetSize(rel)));   				
-    				fw.append(";");
-    				
-    				fw.append(String.valueOf(file.getAvgChgSetSize()));   				
-    				fw.append(";");
-    				
-    				fw.append(String.valueOf(file.getAge()));
     				fw.append("\n");
             	}
     		}
@@ -111,4 +73,21 @@ public class CSVManager {
     	
     	return path;
     }
+
+	private void putBuggynessInfo(FileWriter fw, boolean buggy) throws IOException {
+		if(buggy) {
+			fw.append("1");
+		}else {
+			fw.append("0");
+		}
+	}
+
+	private void putLOCInfo(FileWriter fw, String rel, Map<String, Integer> map) throws IOException {
+		if(!map.containsKey(rel)) {
+			fw.append("0");
+		}else {
+			fw.append(String.valueOf(map.get(rel)));
+		}
+		fw.append(";");
+	}
 }

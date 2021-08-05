@@ -19,11 +19,12 @@ public class FileMetadata{
 
 	private Pair<RevCommit, LocalDate> creation;	
 	private Map<RevCommit, LocalDate> modifications = new LinkedHashMap<>();
+	private List<String> releases = new ArrayList<>();
+	private int fixCounter;
+	private boolean renamed;
 	
 	private long age;
 	private int size;
-	private List<String> releases = new ArrayList<>();
-	private int fixCounter;
 	private List<String> authors = new ArrayList<>();
 	
 	private Map<String,Integer> locAddedPerRev = new LinkedHashMap<>();
@@ -32,13 +33,10 @@ public class FileMetadata{
 	
 	private Map<String, Map<RevCommit,Integer>> chgSet;
 	
-	private boolean renamed;
-
-	public FileMetadata(String filename, RevCommit createCm, LocalDate creationDate) {
-		this.filename = filename;
-		this.creation = new Pair<>(createCm, creationDate);
-	}
+	private Map<String,Boolean> buggyness = new LinkedHashMap<>();
 	
+	//------------------------------------------CONSTRUCTORS-------------------------------------------------
+
 	public FileMetadata(String filename, String firstRel, RevCommit createCm, LocalDate creationDate, String auth) {
 		this.filename = filename;
 		this.creation = new Pair<>(createCm, creationDate);
@@ -60,30 +58,31 @@ public class FileMetadata{
 		
 		//NR
 		for(int i=0; i<src.releases.size(); i++) {
-			this.addRelease(src.releases.get(i));
+			addRelease(src.releases.get(i));
 		}
 		
 		//NFix
-		this.setFixNumber(src.fixCounter);
+		setFixNumber(src.fixCounter);
 		
 		//NAuth
 		for(int i=0; i<src.authors.size(); i++) {
-			this.addAuthor(src.authors.get(i));
+			addAuthor(src.authors.get(i));
 		}
 				
 		//ChgSetSize + AVG ChgSet -> fixed over same release/same file -> pass by reference
 		this.chgSet = src.chgSet;
 		
-		//WeightedAge
+		//Age
 		if(src.modifications != null) {
 			Iterator<RevCommit> modif = src.modifications.keySet().iterator();
 			RevCommit mod;
 			while(modif.hasNext()) {
 				mod = modif.next();
-				this.addModification(mod, null, src.modifications.get(mod), false, null);
+				addModification(mod, null, src.modifications.get(mod), false, null);
 			}
 		}
 		
+		this.buggyness = src.buggyness;
 	}
 	
 	//-----------------------------------------------------UTILS--------------------------------------------------
@@ -121,7 +120,7 @@ public class FileMetadata{
 		this.age = ChronoUnit.WEEKS.between(this.creation.getValue(), modDate);
 		
 		if(release != null && !this.releases.contains(release)) {
-			this.releases.add(release);
+			addRelease(release);
 		}
 		
 		if(fix) {
@@ -154,6 +153,12 @@ public class FileMetadata{
 	public void setFixNumber(int fix) {
 		this.fixCounter = fix;
 	}
+	
+	public void setBuggy(List<String> affectedVers) {
+		for(String rel: affectedVers) {
+			addBuggyness(rel, true);
+		}
+	}
 
 	public void addCopy(String filename) {
 		this.filename = filename;
@@ -162,6 +167,10 @@ public class FileMetadata{
 	
 	private void addRelease(String r) {
 		this.releases.add(r);
+	}
+	
+	private void addBuggyness(String release, Boolean buggy) {
+		this.buggyness.put(release, buggy);
 	}
 	
 	private void addAuthor(String pi) {
@@ -216,7 +225,7 @@ public class FileMetadata{
 			
 	//LOC touched		
 	public Map<String,Integer> getLOCTouchedPerRev(){
-		Map<String,Integer> locTouched = getChurnPerRev(1);
+		Map<String,Integer> locTouched = getChurnPerRev();
 		if(this.locModifiedPerRev == null) {
 			return locTouched;
 		}
@@ -271,35 +280,33 @@ public class FileMetadata{
 	}
 			
 	//Churn + AVG Churn
-	public Map<String,Integer> getChurnPerRev(int i){
-		Map<String,Integer> churn = new LinkedHashMap<>();
+	public Map<String,Integer> getChurnPerRev(){
+		Map<String, Integer> churn = new LinkedHashMap<>();
 		
-		Iterator<String> relAdd = this.locAddedPerRev.keySet().iterator();
+		Iterator<String> iterAdditions = this.locAddedPerRev.keySet().iterator();
 		String currAdd;
 		
-		while(relAdd.hasNext()) {
-			currAdd = relAdd.next();
-			if(this.locRemovedPerRev != null && this.locRemovedPerRev.containsKey(currAdd)) {
-				churn.put(currAdd, this.locAddedPerRev.get(currAdd) + i*(this.locRemovedPerRev.get(currAdd)));
-			}else {
-				churn.put(currAdd, this.locAddedPerRev.get(currAdd));
-			}
+		//Iterate over LOC added to this file 
+		while(iterAdditions.hasNext()) {
+			currAdd = iterAdditions.next();
+			churn.put(currAdd, this.locAddedPerRev.get(currAdd));
 		}
 		
 		if(this.locRemovedPerRev == null) {
 			return churn;
 		}
 		
-		Iterator<String> relRem = this.locRemovedPerRev.keySet().iterator();
+		Iterator<String> iterRemoved = this.locRemovedPerRev.keySet().iterator();
 		String currRem;
 			
-		while(relRem.hasNext()) {
-			currRem = relRem.next();
-			
-			final String rel = currRem;
-			churn.computeIfAbsent(rel, 
-					f -> churn.put(rel, i*(this.locRemovedPerRev.get(rel))));
-				
+		while(iterRemoved.hasNext()) {
+			currRem = iterRemoved.next();
+			if(churn.containsKey(currRem)) {
+				int base = churn.get(currRem);
+				churn.put(currRem, base+this.locRemovedPerRev.get(currRem));
+			}else {
+				churn.put(currRem, this.locRemovedPerRev.get(currRem));
+			}				
 		}
 		
 		return churn;
@@ -307,7 +314,7 @@ public class FileMetadata{
 	
 	public int getAvgChurn() {
 		int totLoc = 0;
-		Map<String,Integer> churn = getChurnPerRev(-1);
+		Map<String,Integer> churn = getChurnPerRev();
 		Iterator<Integer> loc = churn.values().iterator();
 		
 		while(loc.hasNext()) {
@@ -315,11 +322,9 @@ public class FileMetadata{
 			if(i != null) {
 				totLoc += i;
 			}
-			
 		}
 		
 		return totLoc/churn.size();
-		
 	}
 					
 	//ChgSetSize + AVG ChgSet
@@ -370,5 +375,9 @@ public class FileMetadata{
 	//WeightedAge
 	public long getAge() {
 		return age;
+	}
+	
+	public Map<String,Boolean> getBuggyness() {
+		return this.buggyness;
 	}
 }

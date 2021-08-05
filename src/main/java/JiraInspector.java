@@ -21,7 +21,7 @@ public class JiraInspector {
 
 	public List<String> retrieveKeysFromJira(int i, int j) throws IOException{
 		
-		ArrayList<String> bugs = null;
+		List<String> bugs = null;
 		
 		JSONObject json = JSONManager.getInstance().readJsonFromUrl(url);
 		JSONArray issues = json.getJSONArray("issues");
@@ -30,7 +30,7 @@ public class JiraInspector {
         if(i<total) {
         	bugs = new ArrayList<>();
         	for (; i < total && i < j; i++) {
-            	bugs.add(issues.getJSONObject(i%50).get("key").toString());
+        		bugs.add(issues.getJSONObject(i%50).get("key").toString());
             }  
         }
     	

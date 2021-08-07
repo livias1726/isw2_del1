@@ -15,7 +15,7 @@ import javafx.util.Pair;
 
 public class Main {
 	
-	private static String project = "BOOKKEEPER"; //change the name to change the project to analyze
+	private static String project = "OPENJPA"; //change the name to change the project to analyze
 	private static Map<String, Integer> releasesId = new LinkedHashMap<>();
 	
 	public static void main(String[] args) throws GitAPIException, IOException{	

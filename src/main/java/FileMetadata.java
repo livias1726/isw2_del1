@@ -15,154 +15,180 @@ import javafx.util.Pair;
 
 public class FileMetadata{
 	
-	private String filename;	
-
-	private Pair<RevCommit, LocalDate> creation;	
-	private Map<RevCommit, LocalDate> modifications = new LinkedHashMap<>();
-	private List<String> releases = new ArrayList<>();
-	private int fixCounter;
-	private boolean renamed;
+	private boolean deleted;
 	
+	//Constant
+	private Pair<RevCommit, LocalDate> creation;
+	
+	//Relative	
+	private String filename;
+	private LocalDate lastModified;
+	private List<String> releases = new ArrayList<>();
+	private List<String> authors = new ArrayList<>();
+	private int fixCounter;
 	private long age;
 	private int size;
-	private List<String> authors = new ArrayList<>();
 	
+	//Relative but internally discriminated
 	private Map<String,Integer> locAddedPerRev = new LinkedHashMap<>();
 	private Map<String,Integer> locRemovedPerRev = new LinkedHashMap<>();
 	private Map<String,Integer> locModifiedPerRev = new LinkedHashMap<>();
-	
 	private Map<String, Map<RevCommit,Integer>> chgSet;
-	
 	private Map<String,Boolean> buggyness = new LinkedHashMap<>();
 	
 	//------------------------------------------CONSTRUCTORS-------------------------------------------------
 
 	public FileMetadata(String filename, String firstRel, RevCommit createCm, LocalDate creationDate, String auth) {
-		this.filename = filename;
-		this.creation = new Pair<>(createCm, creationDate);
-		
-		this.releases.add(firstRel);
-		this.authors.add(auth);
+		setFilename(filename);
+		setCreation(createCm, creationDate);
+		addRelease(firstRel);
+		addAuthor(auth);
 	}
 	
 	public FileMetadata(FileMetadata src) {
-		this.filename = src.filename;
-		this.creation = new Pair<>(src.creation.getKey(),src.creation.getValue());
+		setFilename(src.getFilename());
+		setCreation(src.getCreation().getKey(), src.getCreation().getValue());
+		setSize(src.getSize());
+		setAge(src.getAge());
 		
-		//Size
-		this.setSize(src.size);
+		setLOCAddedPerRev(src.getLOCAddedPerRev());
+		setLOCRemovedPerRev(src.getLOCRemovedPerRev());
 		
-		//LOC touched + LOC added + AVG LOC added + Churn + AVG Churn
-		this.locAddedPerRev = src.locAddedPerRev;
-		this.locRemovedPerRev = src.locRemovedPerRev;
+		setReleases(src.getReleases());
+		setFixCounter(src.getFixCounter());
+		setAuthors(src.getAuthors());
 		
-		//NR
-		for(int i=0; i<src.releases.size(); i++) {
-			addRelease(src.releases.get(i));
-		}
+		setChgSet(src.getChgSet());
 		
-		//NFix
-		setFixNumber(src.fixCounter);
-		
-		//NAuth
-		for(int i=0; i<src.authors.size(); i++) {
-			addAuthor(src.authors.get(i));
-		}
-				
-		//ChgSetSize + AVG ChgSet -> fixed over same release/same file -> pass by reference
-		this.chgSet = src.chgSet;
-		
-		//Age
-		if(src.modifications != null) {
-			Iterator<RevCommit> modif = src.modifications.keySet().iterator();
-			RevCommit mod;
-			while(modif.hasNext()) {
-				mod = modif.next();
-				addModification(mod, null, src.modifications.get(mod), false, null);
-			}
-		}
-		
-		this.buggyness = src.buggyness;
+		setBuggyness(src.getBuggyness());
 	}
 	
-	//-----------------------------------------------------UTILS--------------------------------------------------
+	//------------------------------------------------GETTER & SETTER---------------------------------------------
 
-	//FILENAME
 	public String getFilename() {
 		return filename;
 	}
 	
-	public void setNewFilename(String filename) {
-		if(this.renamed) {
-			this.filename = filename;
-		}else {
-			this.filename = filename;
-			this.renamed = true;
-		}
+	public void setFilename(String name) {
+		this.filename = name;
 	}
 	
-	//CREATION
-	public LocalDate getCreationDate() {
-		return this.creation.getValue();
+	public Pair<RevCommit, LocalDate> getCreation() {
+		return this.creation;
 	}
 	
-	public RevCommit getCreationCommit() {
-		return this.creation.getKey();
+	public void setCreation(RevCommit key, LocalDate value) { 
+		this.creation = new Pair<>(key, value);
 	}
 	
-	//MODIFICATIONS
-	public void addModification(RevCommit modCm, String release, LocalDate modDate, boolean fix, String auth) {
-		if(this.modifications == null) {
-			this.modifications = new LinkedHashMap<>();
-		}
-		
-		this.modifications.put(modCm, modDate);		
-		this.age = ChronoUnit.WEEKS.between(this.creation.getValue(), modDate);
-		
-		if(release != null && !this.releases.contains(release)) {
-			addRelease(release);
-		}
-		
-		if(fix) {
-			fixCounter++;
-		}
-		
-		if(auth != null && !this.authors.contains(auth)) {
-			this.authors.add(auth);
-		}
-	}
-
-	public LocalDate getLastModified() {
-		if(modifications == null) {
-			return null;
-		}
-		
-		Iterator<RevCommit> iter = modifications.keySet().iterator();
-		RevCommit curr = null;
-		while(iter.hasNext()) {
-			curr = iter.next();
-		}
-		
-		return this.modifications.get(curr);
+	public int getSize() {
+		return size;
 	}
 	
 	public void setSize(int size) {
 		this.size = size;
 	}
 	
-	public void setFixNumber(int fix) {
+	public long getAge() {
+		return age;
+	}
+	
+	public void setAge(long age) {
+		this.age = age;
+	}
+		
+	public LocalDate getLastModified() {
+		return this.lastModified;
+	}
+	
+	public void setLastModified(LocalDate date) {
+		this.lastModified = date;
+	}
+	
+	public int getFixCounter() {
+		return fixCounter;
+	}
+	
+	public void setFixCounter(int fix) {
 		this.fixCounter = fix;
 	}
 	
-	public void setBuggy(List<String> affectedVers) {
-		for(String rel: affectedVers) {
-			addBuggyness(rel, true);
+	public void setDeleted(boolean deleted) {
+		this.deleted = deleted;
+	}
+	
+	public boolean isDeleted() {
+		return this.deleted;
+	}
+	
+	public List<String> getReleases(){
+		return this.releases;
+	}
+	
+	public void setReleases(List<String> list) {
+		for(int i=0; i<list.size(); i++) {
+			addRelease(list.get(i));
 		}
 	}
-
-	public void addCopy(String filename) {
-		this.filename = filename;
-		this.renamed = true;
+	
+	public List<String> getAuthors(){
+		return this.authors;
+	}
+	
+	public void setAuthors(List<String> list) {
+		for(int i=0; i<list.size(); i++) {
+			addAuthor(list.get(i));
+		}
+	}
+	
+	public Map<String,Integer> getLOCAddedPerRev(){
+		return this.locAddedPerRev;
+	}
+	
+	public void setLOCAddedPerRev(Map<String,Integer> map){
+		this.locAddedPerRev = map;
+	}
+	
+	public Map<String,Integer> getLOCRemovedPerRev(){
+		return this.locRemovedPerRev;
+	}
+	
+	public void setLOCRemovedPerRev(Map<String,Integer> map){
+		this.locRemovedPerRev = map;
+	}
+	
+	public Map<String, Map<RevCommit,Integer>> getChgSet(){
+		return this.chgSet;
+	}
+	
+	public void setChgSet(Map<String, Map<RevCommit,Integer>> set) {
+		this.chgSet = set;
+	}
+	
+	public Map<String,Boolean> getBuggyness() {
+		return this.buggyness;
+	}
+	
+	public void setBuggyness(Map<String,Boolean> map) {
+		this.buggyness = map;
+	}
+	//-----------------------------------------------------UTILS--------------------------------------------------
+	
+	public void addModification(String release, LocalDate modDate, boolean fix, String auth) {
+		setLastModified(modDate);
+		setAge(ChronoUnit.WEEKS.between(getCreation().getValue(), modDate));
+		
+		if(release != null && !getReleases().contains(release)) {
+			addRelease(release);
+		}
+		
+		if(fix) {
+			setFixCounter(getFixCounter()+1);
+		}
+		
+		if(auth != null && !getAuthors().contains(auth)) {
+			addAuthor(auth);
+		}
 	}
 	
 	private void addRelease(String r) {
@@ -178,6 +204,12 @@ public class FileMetadata{
 			this.authors = new ArrayList<>();
 		}
 		this.authors.add(pi);
+	}
+
+	public void setBuggy(List<String> affectedVers) {
+		for(String rel: releases) {
+			addBuggyness(rel, affectedVers.contains(rel));
+		}
 	}
 	
 	public void setLOCPerRevision(String rev, int add, int map) {
@@ -216,13 +248,7 @@ public class FileMetadata{
 		this.chgSet.get(release).put(cm, numFiles-1);
 	}
 
-	//----------------------------------------------FEATURES-----------------------------------------------------
 	
-	//Size
-	public int getSize() {
-		return size;
-	}
-			
 	//LOC touched		
 	public Map<String,Integer> getLOCTouchedPerRev(){
 		Map<String,Integer> locTouched = getChurnPerRev();
@@ -252,21 +278,12 @@ public class FileMetadata{
 	public int getNumberOfReleases() {
 		return this.releases.size();
 	}
-
-	//NFix
-	public int getFixes() {
-		return fixCounter;
-	}
-			
+	
 	//NAuth
 	public int getNumberOfAuthors() {
 		return this.authors.size();
 	}
 			
-	//LOC added + AVG LOC added
-	public Map<String,Integer> getLOCAddedPerRev(){
-		return this.locAddedPerRev;
-	}
 	
 	public int getAvgLOCAdded() {
 		int totLoc = 0;
@@ -370,14 +387,5 @@ public class FileMetadata{
 		}else {
 			return 0;
 		}
-	}
-			
-	//WeightedAge
-	public long getAge() {
-		return age;
-	}
-	
-	public Map<String,Boolean> getBuggyness() {
-		return this.buggyness;
 	}
 }

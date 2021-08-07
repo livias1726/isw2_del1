@@ -114,7 +114,7 @@ public class DifferenceTreeManager {
 				}
 				
 				if(fix) {
-					setBugginess(this.opChgSets, this.chgSet, cmId2);
+					setBuggyness(this.opChgSets, this.chgSet, cmId2);
 				}
 				updateChgSet(null);
 				
@@ -125,7 +125,7 @@ public class DifferenceTreeManager {
 		}
 	}
 
-	private void setBugginess(Map<RevCommit, List<FileMetadata>> om, List<FileMetadata> fs, RevCommit fc) {
+	private void setBuggyness(Map<RevCommit, List<FileMetadata>> om, List<FileMetadata> fs, RevCommit fc) {
 		Iterator<Pair<RevCommit,RevCommit>> iter = av.keySet().iterator();
 		Pair<RevCommit,RevCommit> pair;
 		RevCommit oc = null;
@@ -204,6 +204,7 @@ public class DifferenceTreeManager {
 			diffs = diffFormatter.scan(from.getTree(), to.getTree());
 		}
 		
+		
 	    for (DiffEntry diff : diffs) {
 	    	switch(diff.getChangeType()) {
 	    		case ADD:
@@ -212,11 +213,14 @@ public class DifferenceTreeManager {
 		    	case MODIFY:
 		    		manageModified(release, to, diffFormatter, diff);
 		    		break;
+		    	case DELETE:
+		    		manageDeletion(diff);
+		    		break;
 		    	case RENAME:
-		    		removeAndAdd(release, diff);
+		    		manageRenaming(release, diff);
 		    		break;
 		    	case COPY:
-		    		copyAndAdd(release, diff);
+		    		manageCopying(release, diff);
 		    		break;
 	    		default:
 	    			break;
@@ -238,17 +242,16 @@ public class DifferenceTreeManager {
 	 * 		"updateChgSet" -> manages the chgSet of the file to add at the end of the commit analysis
 	 */
 	private void manageAddition(String release, RevCommit to, DiffFormatter df, DiffEntry diff) throws IOException {
-		ZoneId zi = ZoneId.systemDefault();
 		PersonIdent pi = to.getAuthorIdent();
-		LocalDate date = pi.getWhen().toInstant().atZone(zi).toLocalDate();
+		LocalDate date = pi.getWhen().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
 		FileMetadata f;
 		
-		Pair<String,Integer> file = getFile(diff.getNewPath());		
-		if(file.getKey() != null){
+		Pair<String, Integer> file = getFile(diff.getNewPath());	
+		if(file.getKey() == null || files.get(file.getKey()).get(file.getValue()).isDeleted()) {
+			f = new FileMetadata(diff.getNewPath(), release, to, date, pi.getName());
+		}else {
 			return;
 		}
-		
-		f = new FileMetadata(diff.getNewPath(), release, to, date, pi.getName());
 		
 		computeChanges(f, df, diff, release);
 		insert(release, f);
@@ -274,63 +277,80 @@ public class DifferenceTreeManager {
 		PersonIdent pi = to.getAuthorIdent();
 		LocalDate date = pi.getWhen().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
 
-		FileMetadata f = new FileMetadata(files.get(cm.getKey()).get(cm.getValue()));
+		boolean isIn = false;
+		if(cm.getKey().equals(release)) {
+			isIn = true;
+		}
+		
+		FileMetadata f;
+		if(isIn) {
+			f = new FileMetadata(files.get(cm.getKey()).get(cm.getValue()));
+		}else {
+			f = files.get(cm.getKey()).get(cm.getValue());
+		}
 		
 		LocalDate lastMod = f.getLastModified();
 		if(lastMod == null || lastMod.isBefore(date)) {
-			f.addModification(to, release, date, fix, pi.getName());			
+			f.addModification(release, date, fix, pi.getName());			
 		}else {
 			return;
 		}		
 		
 		computeChanges(f, df, diff, release);
-		insert(release, f);
+		
+		if(isIn) {
+			insert(release, f);
+		}
+		
 		updateChgSet(f);
 	}
 	
 	/*
-	 * A file has been detected as renamed: renaming gets triggered
-	 * Usage:
-	 * 		"getFile" -> check if the file already exists: if not do nothing
-	 * 		retrieve the file and set the new name
-	 * 		"insert" -> add the file to a global list related to the release
-	 * 		"updateChgSet" -> manages the chgSet of the file to add at the end of the commit analysis
+	 * 
 	 */
-	private void removeAndAdd(String release, DiffEntry diff){
+	public void manageDeletion(DiffEntry diff) {
+		Pair<String,Integer> cm = getFile(diff.getOldPath());
+		if(cm.getKey() == null) {
+			return;				
+		}
+		
+		FileMetadata f = files.get(cm.getKey()).get(cm.getValue());
+		f.setDeleted(true);
+	}
+	
+	/*
+	 * A file has been detected as renamed: renaming gets triggered
+	 */
+	private void manageRenaming(String release, DiffEntry diff){
+		Pair<String,Integer> cm = getFile(diff.getOldPath());
+		if(cm.getKey() == null) {
+			return;				
+		}
+		
+		FileMetadata f;
+		if(!cm.getKey().equals(release)) {
+			f = new FileMetadata(files.get(cm.getKey()).get(cm.getValue()));
+			f.setFilename(diff.getNewPath());
+			insert(release, f);
+		}else {
+			f = files.get(cm.getKey()).get(cm.getValue());
+			f.setFilename(diff.getNewPath());
+		}
+		
+		updateChgSet(f);
+	}
+	
+	/*
+	 * A file has been detected as copied: copying gets triggered
+	 */
+	private void manageCopying(String release, DiffEntry diff) {
 		Pair<String,Integer> cm = getFile(diff.getOldPath());
 		if(cm.getKey() == null) {
 			return;				
 		}
 		
 		FileMetadata f = new FileMetadata(files.get(cm.getKey()).get(cm.getValue()));
-		if(f.getFilename().equals(diff.getNewPath())) {
-			return;
-		}
-		f.setNewFilename(diff.getNewPath());		
-		
-		insert(release, f);
-		updateChgSet(f);
-	}
-	
-	/*
-	 * A file has been detected as renamed: renaming gets triggered
-	 * Usage:
-	 * 		"getFile" -> check if the file already exists: if not do nothing
-	 * 		retrieve the file and copy it
-	 * 		"insert" -> add the file to a global list related to the release
-	 * 		"updateChgSet" -> manages the chgSet of the file to add at the end of the commit analysis
-	 */
-	private void copyAndAdd(String release, DiffEntry diff) {
-		Pair<String,Integer> cm = getFile(diff.getOldPath());
-		if(cm.getKey() == null) {
-			return;				
-		}
-		
-		FileMetadata f = new FileMetadata(files.get(cm.getKey()).get(cm.getValue()));
-		if(f.getFilename().equals(diff.getNewPath())) {
-			return;
-		}
-		f.addCopy(diff.getNewPath());
+		f.setFilename(diff.getNewPath());
 		
 		insert(release, f);
 		updateChgSet(f);
@@ -345,7 +365,8 @@ public class DifferenceTreeManager {
 		String currRel;
 		
 		while(iter.hasNext()) {
-			currRel = iter.next();			
+			currRel = iter.next();		
+			
 			for(FileMetadata j: files.get(currRel)) {
 				if(filename.equals(j.getFilename())) {
 					rel = currRel;
@@ -364,6 +385,13 @@ public class DifferenceTreeManager {
 		if(!files.keySet().contains(release)) {
 			List<FileMetadata> list = new ArrayList<>();
 			files.put(release, list);
+		}else{
+			for(FileMetadata f: files.get(release)) {
+				if(f.getFilename().equals(file.getFilename())) {
+					files.get(release).remove(f);
+					break;
+				}
+			}
 		}
 		
 		files.get(release).add(file);
@@ -378,8 +406,8 @@ public class DifferenceTreeManager {
 	 */
 	private void computeChanges(FileMetadata f, DiffFormatter df, DiffEntry diff, String release) throws IOException {
 		int size = f.getSize();
-		FileHeader fileHeader = df.toFileHeader(diff);
 		
+		FileHeader fileHeader = df.toFileHeader(diff);
 		for(Edit edit: fileHeader.toEditList()) {
 			if (edit.getType() == Type.INSERT) {
 				size = size + edit.getLengthB();
@@ -387,11 +415,10 @@ public class DifferenceTreeManager {
 				
 			} else if (edit.getType() == Type.DELETE) {
 				size = size - edit.getLengthA();
-				f.setLOCPerRevision(release, edit.getLengthB(), 1);
+				f.setLOCPerRevision(release, edit.getLengthA(), 1);
 				
 			} else if (edit.getType() == Type.REPLACE) {
 				size = size + edit.getLengthB() - edit.getLengthA();
-				
 				if(edit.getLengthB() > edit.getLengthA()) {
 					f.setLOCPerRevision(release, edit.getLengthB()-edit.getLengthA(), 0);
 					f.setLOCPerRevision(release, edit.getLengthA(), 2);

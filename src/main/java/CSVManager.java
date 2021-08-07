@@ -44,6 +44,10 @@ public class CSVManager {
             	rel = iter.next();
             	
             	for(FileMetadata file: files.get(rel)) {
+            		if(file.getSize() < 0) {
+            			continue;
+            		}
+            		
             		fw.append(project + ";");
             		fw.append(rel + ";");
     				fw.append(file.getFilename() + ";");
@@ -52,7 +56,7 @@ public class CSVManager {
     				putLOCInfo(fw, rel, file.getLOCTouchedPerRev());
     				
     				fw.append(String.valueOf(file.getNumberOfReleases()) + ";");
-    				fw.append(String.valueOf(file.getFixes()) + ";");
+    				fw.append(String.valueOf(file.getFixCounter()) + ";");
     				fw.append(String.valueOf(file.getNumberOfAuthors()) + ";");
     				
     				putLOCInfo(fw, rel, file.getLOCAddedPerRev());
@@ -74,8 +78,8 @@ public class CSVManager {
     	return path;
     }
 
-	private void putBuggynessInfo(FileWriter fw, boolean buggy) throws IOException {
-		if(buggy) {
+	private void putBuggynessInfo(FileWriter fw, Boolean buggy) throws IOException {
+		if(Boolean.TRUE.equals(buggy)) {
 			fw.append("1");
 		}else {
 			fw.append("0");

@@ -31,8 +31,8 @@ public class GitBugMatcher {
 	 */
 	public Map<String, Pair<RevCommit, RevCommit>> getFixDateFromGit(List<String> bugs) throws GitAPIException {
 		Git git = Git.init().setDirectory(new File("..\\..\\..\\sources\\" + project)).call();
-		RevCommit cm;
-		Iterator<RevCommit> log;
+		Iterator<RevCommit> log = git.log().call().iterator();
+		List<RevCommit> logList = toList(log);
 		
 		List<RevCommit> cmForBug;	
 		Map<String, Pair<RevCommit, RevCommit>> bugsCycle = new LinkedHashMap<>();
@@ -41,13 +41,14 @@ public class GitBugMatcher {
 		RevCommit open;
 		RevCommit fix;
 		
-		for(String s: bugs) {
+		int i;
+		int j;
+		for(i=0; i<bugs.size(); i++) {
 			cmForBug = new ArrayList<>();
-			log = git.log().call().iterator();
-			while(log.hasNext()) {
-				cm = log.next();
-				if(cm.getFullMessage().contains(s)) {
-					cmForBug.add(cm);
+			
+			for(j=0; j<logList.size(); j++) {
+				if(logList.get(j).getFullMessage().contains(bugs.get(i))) {
+					cmForBug.add(logList.get(j));
 				}
 			}
 			
@@ -59,13 +60,26 @@ public class GitBugMatcher {
 			}
 			
 			cycle = new Pair<>(open, fix);
-			bugsCycle.put(s, cycle);
+			bugsCycle.put(bugs.get(i), cycle);
 		}
 		
 		git.close();		
 		return bugsCycle;
 	}
 	
+	private List<RevCommit> toList(Iterator<RevCommit> log) {
+		List<RevCommit> list = new ArrayList<>();
+		RevCommit cm;
+		while(log.hasNext()) {
+			cm = log.next();
+			if(cm.getFullMessage().contains(project)) {
+				list.add(cm);
+			}
+		}
+		
+		return list;
+	}
+
 	private RevCommit retrieveOpeningCommit(List<RevCommit> cmForBug) {
 		RevCommit open = null;	
 		

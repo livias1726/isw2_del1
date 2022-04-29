@@ -39,7 +39,7 @@ public class ReleaseManager {
         return instance;
     }
 
-	//Getters
+	//Getters & Setters
 	public static String[] getReleaseNames() {
 		return releaseNames;
 	}
@@ -47,6 +47,8 @@ public class ReleaseManager {
 	public static LocalDate[] getStartDates() {
 		return startDates;
 	}
+
+	public static void setProportion(double newP){ p = newP; }
 
 	/**
 	 * Sets opening and fix version for every bug in the list, based on the ticket info set during creation.
@@ -216,7 +218,7 @@ public class ReleaseManager {
 		int iInj = getIndexFromRelease(bug.getInjectedVer());
 
 		//TODO: check if the corrective term (+1) is correct
-		p = ((double)(iFix - iInj)/(iFix - iOpen + 1) + p)/2; //Mean value between the new proportion and the old
+		setProportion(((double)(iFix - iInj)/(iFix - iOpen + 1) + p)/2); //Mean value between the new proportion and the old
 	}
 
 	private String retrieveInjectedVersion(Bug bug) {
@@ -224,7 +226,7 @@ public class ReleaseManager {
 		int iOpen = getIndexFromRelease(bug.getOpeningVer());
 
 		if(p == 0){
-			p = 2;
+			setProportion(2);
 		}
 
 		int iInj = (int) (iFix - p*(iFix-iOpen));

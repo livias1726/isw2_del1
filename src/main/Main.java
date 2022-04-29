@@ -11,10 +11,10 @@ import main.dataset.control.DatasetManager;
 public class Main {
 
 	private static Logger logger = null;
-    private static final String project = "OPENJPA"; //change the name to change the project to analyze
+    private static final String PROJECT = "OPENJPA"; //change the name to change the project to analyze
 
 	public static void main(String[] args) {
-		System.setProperty("project_name", project);
+		System.setProperty("project_name", PROJECT);
 
 		try {
 			//if project is BOOKKEEPER: Jira support ended on 2017-10-17
@@ -27,7 +27,7 @@ public class Main {
 			prepareLogger();
 
 			//dataset construction
-			Pair<String, String[]> datasetCSV = DatasetManager.getInstance(project).getDataset(logger);
+			Pair<String, String[]> datasetCSV = DatasetManager.getInstance(PROJECT).getDataset(logger);
 			logger.info("Dataset construction: SUCCESS.");
 
 			//training

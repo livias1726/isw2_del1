@@ -1,11 +1,11 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <groupId>isw2_del2</groupId>
-  <artifactId>isw2_del2</artifactId>
+  <artifactId>isw2_del1</artifactId>
   <version>0.0.1-SNAPSHOT</version>
   
   <properties>
-	  <sonar.projectKey>livias1726_isw2_del2</sonar.projectKey>
+	  <sonar.projectKey>livias1726_isw2_del1</sonar.projectKey>
 	  <sonar.organization>livias1726</sonar.organization>
 	  <sonar.host.url>https://sonarcloud.io</sonar.host.url>
   </properties>

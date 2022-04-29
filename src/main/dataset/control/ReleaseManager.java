@@ -1,6 +1,7 @@
 package main.dataset.control;
 
 import main.dataset.entity.Bug;
+import org.apache.commons.lang3.ArrayUtils;
 import org.eclipse.jgit.revwalk.RevCommit;
 
 import java.time.LocalDate;
@@ -260,7 +261,14 @@ public class ReleaseManager {
 	}
 
 	public void removeSecondHalfOfReleases() {
-		/**/
+		int tot = releaseNames.length;
+		int half = tot/2;
+
+		for(int i=half; i<tot; i++){
+			ArrayUtils.remove(releaseNames, i);
+			ArrayUtils.remove(startDates, i);
+			ArrayUtils.remove(endDates, i);
+		}
 	}
 
 	/**

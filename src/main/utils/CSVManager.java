@@ -43,8 +43,11 @@ public class CSVManager {
 					  "Age,Buggy");
     		fw.append("\n");
 
-			for(String rel: files.keySet()){
-				for(FileMetadata file: files.get(rel)) {
+			String rel;
+			for(Map.Entry<String, List<FileMetadata>> entry: files.entrySet()){
+				rel = entry.getKey();
+
+				for(FileMetadata file: entry.getValue()) {
 					if(file.getAge() < 0) { //TODO: manage files with negative ages
 						continue;
 					}

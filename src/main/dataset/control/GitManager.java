@@ -78,14 +78,14 @@ public class GitManager {
         LocalDate cmDate;
 
         for(Bug bug: bugs) {
-            for(RevCommit cm: commits.keySet()){
-                if(cm.getFullMessage().contains(bug.getTicketKey())){
-                    cmDate = commits.get(cm);
+            for(Map.Entry<RevCommit, LocalDate> entry: commits.entrySet()){
+                if(entry.getKey().getFullMessage().contains(bug.getTicketKey())){
+                    cmDate = entry.getValue();
                     if(bug.getFixDate().equals(cmDate)){
-                        bug.setFixCm(cm);
+                        bug.setFixCm(entry.getKey());
 
                     }else{
-                        bug.setReferencingCms(cm);
+                        bug.setReferencingCms(entry.getKey());
                     }
                 }
             }

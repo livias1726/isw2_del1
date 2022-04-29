@@ -9,22 +9,22 @@ import java.util.*;
 
 public class ReleaseManager {
 
-	private static Map<String, LocalDate> releases;
-	private static String[] releaseNames;
-	private static LocalDate[] startDates;
-	private static LocalDate[] endDates;
+	private final Map<String, LocalDate> releases;
+	private String[] releaseNames;
+	private LocalDate[] startDates;
+	private LocalDate[] endDates;
 
 	private static double p; //Proportion factor
 
 	//Instantiation
 	private static ReleaseManager instance = null;
 
-    private ReleaseManager(Map<String, LocalDate> releases) {
-		ReleaseManager.releases = releases;
-		ReleaseManager.releaseNames = releases.keySet().toArray(new String[0]);
-		ReleaseManager.startDates = releases.values().toArray(new LocalDate[0]);
+    private ReleaseManager(Map<String, LocalDate> releasesList) {
+		releases = releasesList;
+		releaseNames = releases.keySet().toArray(new String[0]);
+		startDates = releases.values().toArray(new LocalDate[0]);
 
-		ReleaseManager.endDates = new LocalDate[releases.size()];
+		endDates = new LocalDate[releases.size()];
 		int i;
 		for(i=0; i<startDates.length-1; i++){
 			endDates[i] = startDates[i+1];
@@ -40,11 +40,11 @@ public class ReleaseManager {
     }
 
 	//Getters & Setters
-	public static String[] getReleaseNames() {
+	public String[] getReleaseNames() {
 		return releaseNames;
 	}
 
-	public static LocalDate[] getStartDates() {
+	public LocalDate[] getStartDates() {
 		return startDates;
 	}
 
@@ -267,9 +267,9 @@ public class ReleaseManager {
 		int half = tot/2;
 
 		for(int i=half; i<tot; i++){
-			ArrayUtils.remove(releaseNames, i);
-			ArrayUtils.remove(startDates, i);
-			ArrayUtils.remove(endDates, i);
+			releaseNames = ArrayUtils.remove(releaseNames, i);
+			startDates = ArrayUtils.remove(startDates, i);
+			endDates = ArrayUtils.remove(endDates, i);
 		}
 	}
 
@@ -287,6 +287,7 @@ public class ReleaseManager {
 		LocalDate start;
 		LocalDate end;
 		LocalDate cmDate;
+		RevCommit commit;
 
 		for(int i=0; i<releaseNames.length; i++){
 			rel = releaseNames[i];
@@ -294,8 +295,9 @@ public class ReleaseManager {
 			end = endDates[i];
 
 			Map<RevCommit, LocalDate> cmMap = new LinkedHashMap<>();
-			for(RevCommit commit: commits.keySet()){
-				cmDate = commits.get(commit);
+			for(Map.Entry<RevCommit, LocalDate> entry: commits.entrySet()){
+				cmDate = entry.getValue();
+				commit = entry.getKey();
 
 				if ((cmDate.isAfter(start) || cmDate.isEqual(start)) && cmDate.isBefore(end)) {
 					cmMap.put(commit, cmDate);

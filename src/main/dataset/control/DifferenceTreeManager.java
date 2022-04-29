@@ -65,14 +65,14 @@ public class DifferenceTreeManager {
 			throws GitAPIException, IOException {
 
 		RevCommit cmId1 = null;
-		for (String currRel: commits.keySet()) { //Scan every release
-			for(RevCommit cmId2: commits.get(currRel).keySet()){ //Scan every commit in the release
+		for (Map.Entry<String, Map<RevCommit, LocalDate>> currEntry: commits.entrySet()) { //Scan every release
+			for(RevCommit cmId2: currEntry.getValue().keySet()){ //Scan every commit in the release
 
-				computeChanges(currRel, cmId1, cmId2); //Compute changes between a pair of commits
+				computeChanges(currEntry.getKey(), cmId1, cmId2); //Compute changes between a pair of commits
 
 				//Manage changing set
 				for(FileMetadata f: chgSet) {
-					f.addChgSetCommit(currRel, cmId2, chgSet.size());
+					f.addChgSetCommit(currEntry.getKey(), cmId2, chgSet.size());
 				}
 				updateChgSet(null); //Re-initialize changing set
 
@@ -288,10 +288,10 @@ public class DifferenceTreeManager {
 		String rel = null;
 
 		int i = 0; //Index
-		for(String currRel: files.keySet()){ //Scan the releases
-			for(FileMetadata file: files.get(currRel)) { //Scan the files in the release
+		for(Map.Entry<String, List<FileMetadata>> currEntry: files.entrySet()){ //Scan the releases
+			for(FileMetadata file: currEntry.getValue()) { //Scan the files in the release
 				if(filename.equals(file.getFilename())) {
-					rel = currRel;
+					rel = currEntry.getKey();
 					idx = i;
 				}
 				i++;
@@ -371,7 +371,6 @@ public class DifferenceTreeManager {
 				}else { //edit.getLengthB() == edit.getLengthA()
 					//Save LOCs modified
 					f.setLOCPerRevision(release, revision, edit.getLengthA(), 2);
-					//Interchangeably: f.setLOCPerRevision(release, revision, edit.getLengthB(), 2);
 				}
 			}
 		}

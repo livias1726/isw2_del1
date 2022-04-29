@@ -3,8 +3,6 @@ package main.dataset.entity;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import org.eclipse.jgit.revwalk.RevCommit;
 
@@ -32,7 +30,7 @@ public class FileMetadata{
 	//--------------------------------------------------------Utils-----------------------------------------------------
 	private String filename; 						//Used as ID
 	private Pair<RevCommit, LocalDate> creation; 	//Pair of creation commit and date
-	private boolean deleted; 						//Flag to signal a deletion (used when the same file is created again)
+	private boolean isDeleted; 						//Flag to signal a deletion (used when the same file is created again)
 	private LocalDate lastModified; 				//Last modification date
 
 	//------------------------------------------CONSTRUCTORS-------------------------------------------------
@@ -99,8 +97,8 @@ public class FileMetadata{
 	public void setFixCounter(int fix) {this.fixCounter = fix;}
 
 	//Flag that indicates whether the file was deleted
-	public boolean isDeleted() {return this.deleted;}
-	public void setDeleted(boolean deleted) {this.deleted = deleted;}
+	public boolean isDeleted() {return this.isDeleted;}
+	public void setDeleted(boolean deleted) {this.isDeleted = deleted;}
 
 	//Revisions
 	public Map<String, List<RevCommit>> getRevisionsPerRelease() {return revisions;}

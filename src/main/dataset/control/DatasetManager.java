@@ -40,25 +40,27 @@ public class DatasetManager {
 	 * @return : dataset filename and project releases
 	 * */
 	public Pair<String, String[]> getDataset(Logger logger) throws GitAPIException, IOException {
+		StringBuilder stringBuilder = new StringBuilder();
+		String log;
+
 		//--------------------------------------------------JIRA--------------------------------------------------------
 
 		JiraManager jira = JiraManager.getInstance(project);
 		ReleaseManager relMan = ReleaseManager.getInstance(jira.getProjectVersions()); //Get releases
 
 		/*LOG*/
-		StringBuilder stringBuilder = new StringBuilder("Releases: ");
-		stringBuilder.append(Arrays.toString(ReleaseManager.getReleaseNames()));
-		/*for(String rel: ReleaseManager.getReleaseNames()){
-			stringBuilder.append(rel).append(", ");
-		}*/
-		logger.info(stringBuilder.toString());
+		stringBuilder.append("Releases: ");
+		stringBuilder.append(Arrays.toString(relMan.getReleaseNames()));
+		log = stringBuilder.toString();
+		logger.info(log);
 
 		List<Bug> bugs = jira.getFixes(); //Get list of jira fix tickets
 
         /*LOG*/
 		stringBuilder.replace(0, stringBuilder.length(),
 				"Total number of Jira tickets retrieved: " + bugs.size());
-		logger.info(stringBuilder.toString());
+		log = stringBuilder.toString();
+		logger.info(log);
 
 		//---------------------------------------------------GIT--------------------------------------------------------
 
@@ -68,21 +70,24 @@ public class DatasetManager {
         /*LOG*/
 		stringBuilder.replace(0, stringBuilder.length(),
 				"Total number of commits retrieved: " + commits.size());
-		logger.info(stringBuilder.toString());
+		log = stringBuilder.toString();
+		logger.info(log);
 
 		bugs = git.manageBugCommits(bugs, commits); //Manage list of commits linked to a jira fix ticket
 
         /*LOG*/
 		stringBuilder.replace(0, stringBuilder.length(),
 				"Project linkage is: " + getBugLinkage(commits.size(), bugs)*100);
-		logger.info(stringBuilder.toString());
+		log = stringBuilder.toString();
+		logger.info(log);
 
 		bugs = git.removeUnreferencedBugs(bugs); //Must be after the linkage computation
 
         /*LOG*/
 		stringBuilder.replace(0, stringBuilder.length(),
 				"Number of bugs referenced: " + bugs.size());
-		logger.info(stringBuilder.toString());
+		log = stringBuilder.toString();
+		logger.info(log);
 
 		bugs = git.processFixCommitInfo(bugs);
 
@@ -99,18 +104,20 @@ public class DatasetManager {
 					append(", Fix: ").append(bug.getFixVer()).
 					append("}");
 		}
-		logger.info(stringBuilder.toString());
+		log = stringBuilder.toString();
+		logger.info(log);
 
 		relMan.removeSecondHalfOfReleases(); //Cut the second half of the releases to get reliable input
 		Map<String, Map<RevCommit, LocalDate>> cmPerRelease = relMan.matchCommitsAndReleases(commits);
 
 		/*LOG*/
 		stringBuilder.replace(0, stringBuilder.length(),"\nCOMMITS PER RELEASE:");
-		for(String rel: ReleaseManager.getReleaseNames()){
+		for(String rel: relMan.getReleaseNames()){
 			stringBuilder.append("\n\t").append(rel).
 					append(" -> ").append(cmPerRelease.get(rel).keySet().size());
 		}
-		logger.info(stringBuilder.toString());
+		log = stringBuilder.toString();
+		logger.info(log);
 
 		//--------------------------------------------------FILES-------------------------------------------------------
 
@@ -119,15 +126,16 @@ public class DatasetManager {
 
 		/*LOG*/
 		stringBuilder.replace(0, stringBuilder.length(),"\nFILES PER RELEASE:");
-		for(String rel: files.keySet()){
-			stringBuilder.append("\n\t").append(rel).
-					append(" -> ").append(files.get(rel).size());
+		for(Map.Entry<String, List<FileMetadata>> entry: files.entrySet()){
+			stringBuilder.append("\n\t").append(entry.getKey()).
+					append(" -> ").append(entry.getValue().size());
 		}
-		logger.info(stringBuilder.toString());
+		log = stringBuilder.toString();
+		logger.info(log);
 
 		String dataset = CSVManager.getInstance().getDataset(project, dt.getFiles()); //Create the dataset
 
-		return new Pair<>(dataset, ReleaseManager.getReleaseNames());
+		return new Pair<>(dataset, relMan.getReleaseNames());
 	}
 
 	/**

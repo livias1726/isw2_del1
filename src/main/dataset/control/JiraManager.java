@@ -117,7 +117,6 @@ public class JiraManager {
 		JSONObject fields;
 
 		String key;
-		//LocalDate openingDate;
 		LocalDate fixDate;
 		List<String> affectedVersions;
 

@@ -7,12 +7,11 @@ import java.util.logging.*;
 
 import javafx.util.Pair;
 import main.dataset.control.DatasetManager;
-import main.training.AnalysisManager;
 
 public class Main {
 
-	private static Logger LOGGER = null;
-    private static final String project = "BOOKKEEPER"; //change the name to change the project to analyze
+	private static Logger logger = null;
+    private static final String project = "OPENJPA"; //change the name to change the project to analyze
 
 	public static void main(String[] args) {
 		System.setProperty("project_name", project);
@@ -28,8 +27,8 @@ public class Main {
 			prepareLogger();
 
 			//dataset construction
-			Pair<String, String[]> datasetCSV = DatasetManager.getInstance(project).getDataset(LOGGER);
-			LOGGER.info("Dataset construction: SUCCESS.");
+			Pair<String, String[]> datasetCSV = DatasetManager.getInstance(project).getDataset(logger);
+			logger.info("Dataset construction: SUCCESS.");
 
 			//training
 			//AnalysisManager.getInstance().getAnalysis(project, datasetCSV.getKey(), datasetCSV.getValue());
@@ -45,7 +44,7 @@ public class Main {
 
 		try {
 			LogManager.getLogManager().readConfiguration(stream);
-			LOGGER = Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
+			logger = Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
 
 		} catch (IOException e) {
 			e.printStackTrace();

@@ -35,7 +35,7 @@ public class ReleaseManager {
     }
 
 	//Getters & Setters
-	public void setReleases(Map<String, LocalDate> releasesList){
+	public static void setReleases(Map<String, LocalDate> releasesList){
 		releases = releasesList;
 		releaseNames = releases.keySet().toArray(new String[0]);
 		startDates = releases.values().toArray(new LocalDate[0]);

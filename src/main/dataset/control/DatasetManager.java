@@ -54,7 +54,7 @@ public class DatasetManager {
 
 		JiraManager jira = JiraManager.getInstance(project);
 		ReleaseManager relMan = ReleaseManager.getInstance(); //Get releases
-		relMan.setReleases(jira.getProjectVersions());
+		ReleaseManager.setReleases(jira.getProjectVersions());
 
 		/*LOG*/
 		stringBuilder.append("Releases: ");

@@ -3,6 +3,7 @@ package main.dataset.control;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -36,12 +37,14 @@ public class DifferenceTreeManager {
 
 	//Instantiation
 	private static DifferenceTreeManager instance = null;
+
 	private DifferenceTreeManager(String projectName, List<Bug> bugs) {
 		this.project = projectName;
 		this.bugs = bugs;
 		this.files = new LinkedHashMap<>();
 		this.chgSet = new ArrayList<>();
 	}
+
 	public static DifferenceTreeManager getInstance(String projectName, List<Bug> bugs) {
 		if(instance == null) {
 			instance = new DifferenceTreeManager(projectName, bugs);
@@ -78,6 +81,10 @@ public class DifferenceTreeManager {
 
 				cmId1 = cmId2; //Move forward
 			}
+
+			if(cmId1 != null){
+				updateFilesAge(currEntry.getKey(), cmId1);
+			}
 		}
 
 		return getFiles();
@@ -105,7 +112,7 @@ public class DifferenceTreeManager {
 					manageModified(release, to, diffFormatter, diff);
 					break;
 				case DELETE:
-					manageDeletion(diff);
+					manageDeletion(to, diff.getOldPath());
 					break;
 				case RENAME:
 					manageRenaming(release, diff);
@@ -205,22 +212,28 @@ public class DifferenceTreeManager {
 	/**
 	 * Triggered by a deletion of a .java file in the repository.
 	 * Needs to account for the presence of bug fix.
-	 * 
-	 * @param diff: instance of the DiffEntry
+	 * Revision addition is not considered.
+	 *
+	 * @param to : commit that deletes the file
+	 * @param oldPath : name of the deleted file
 	 */
-	public void manageDeletion(DiffEntry diff) {
+	public void manageDeletion(RevCommit to, String oldPath) {
 		//Retrieve existing file -> return null if file does not exist, else f
-		Pair<String,Integer> cm = getLatestKnownFileVersion(diff.getOldPath());
+		Pair<String,Integer> cm = getLatestKnownFileVersion(oldPath);
 		if(cm.getKey() == null) {
 			return;
 		}
 		FileMetadata f = files.get(cm.getKey()).get(cm.getValue());
-		
+
+		LocalDate delDate = to.getAuthorIdent().getWhen().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+		f.setAge(ChronoUnit.WEEKS.between(f.getCreation().getValue(), delDate)); //Sets the age at the time of deletion
+
 		f.setDeleted(true);
 	}
 
 	/**
 	 * Triggered by a renaming of a .java file in the repository.
+	 * Revision addition is not considered.
 	 *
 	 * @param release: name of the release in which the addition is done
 	 * @param diff: instance of the DiffEntry
@@ -230,14 +243,18 @@ public class DifferenceTreeManager {
 		if(cm.getKey() == null) {
 			return;
 		}
+
 		FileMetadata f = files.get(cm.getKey()).get(cm.getValue());
 		
-		if(!cm.getKey().equals(release)) {
-			f = new FileMetadata(f);
-			f.setFilename(diff.getNewPath());
-			updateListOfFiles(release, f);
+		if(!cm.getKey().equals(release)) {	/*if the renaming takes place in another release than the latest one the
+											file was in*/
+			//add the new file in the new release
+			FileMetadata newF = new FileMetadata(f);
+			newF.setFilename(diff.getNewPath());
+			updateListOfFiles(release, newF);
+
 		}else {
-			f.setFilename(diff.getNewPath());
+			f.setFilename(diff.getNewPath()); //update the file in the release
 		}
 
 		updateChgSet(f);
@@ -254,9 +271,8 @@ public class DifferenceTreeManager {
 		if(cm.getKey() == null) {
 			return;
 		}
-		FileMetadata f = files.get(cm.getKey()).get(cm.getValue());
-				
-		f = new FileMetadata(f);
+		FileMetadata f = new FileMetadata(files.get(cm.getKey()).get(cm.getValue()));
+
 		f.setFilename(diff.getNewPath());
 		updateListOfFiles(release, f);
 		updateChgSet(f);
@@ -377,4 +393,33 @@ public class DifferenceTreeManager {
 		
 		f.setSize(size);
 	}
+
+	/**
+	 * Updates the ages of the files related to a given release by the end of said release.
+	 * Only files that are present within the tree of the last commit in the release are considered:
+	 * deleted files are managed in the deletion method.
+	 *
+	 * @param release : given release
+	 * @param lastCommit : last commit in the release
+	 * */
+	private void updateFilesAge(String release, RevCommit lastCommit) throws GitAPIException, IOException {
+		if(!files.containsKey(release)){
+			return;
+		}
+
+		LocalDate lastDate = lastCommit.getAuthorIdent().getWhen().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+
+		GitManager git = GitManager.getInstance(project); //Uses Git API to compute the walk tree
+		List<String> filenames = git.retrieveFilesInTree(lastCommit);
+
+		for(FileMetadata file: files.get(release)){ //files added or modified in the release
+			for(String filename: filenames){
+				if(file.getFilename().equals(filename)){
+					file.setAge(ChronoUnit.WEEKS.between(file.getCreation().getValue(), lastDate));	/*updates file age
+																									in terms of weeks*/
+				}
+			}
+		}
+	}
+
 }

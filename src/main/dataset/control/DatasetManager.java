@@ -13,6 +13,11 @@ import org.eclipse.jgit.revwalk.RevCommit;
 
 import javafx.util.Pair;
 
+/**
+ * Controller class.
+ *
+ * Retrieves information to create the dataset.
+ * */
 public class DatasetManager {
 	
 	private final String project;
@@ -39,14 +44,17 @@ public class DatasetManager {
 	 *
 	 * @return : dataset filename and project releases
 	 * */
-	public Pair<String, String[]> getDataset(Logger logger) throws GitAPIException, IOException {
+	public Pair<String, String[]> getDataset() throws GitAPIException, IOException {
+		Logger logger = Logger.getLogger(project);
+
 		StringBuilder stringBuilder = new StringBuilder();
 		String log;
 
 		//--------------------------------------------------JIRA--------------------------------------------------------
 
 		JiraManager jira = JiraManager.getInstance(project);
-		ReleaseManager relMan = ReleaseManager.getInstance(jira.getProjectVersions()); //Get releases
+		ReleaseManager relMan = ReleaseManager.getInstance(); //Get releases
+		relMan.setReleases(jira.getProjectVersions());
 
 		/*LOG*/
 		stringBuilder.append("Releases: ");
@@ -93,21 +101,31 @@ public class DatasetManager {
 
 		//-------------------------------------------------RELEASES-----------------------------------------------------
 
-		bugs = relMan.analyzeBugReleases(bugs);
+		bugs = relMan.analyzeOpeningAndFix(bugs); //get opening and fix versions
+
+		/*LOG*/
+		stringBuilder.replace(0, stringBuilder.length(),
+				"Number of bugs with valid opening and fix version: ");
+		stringBuilder.append(bugs.size());
+		log = stringBuilder.toString();
+		logger.info(log);
+
+		bugs = relMan.analyzeBugInfection(bugs); //get injected and affected versions
 
         /*LOG*/
-		stringBuilder.replace(0, stringBuilder.length(),"\nBUGS:");
+		stringBuilder.replace(0, stringBuilder.length(),
+				"Number of bugs with complete information: " + bugs.size() + "\nBUGS:");
 		for(Bug bug: bugs){
 			stringBuilder.append("\n\t").append(bug.getTicketKey()).
 					append(": {Injected: ").append(bug.getInjectedVer()).
 					append(", Opening: ").append(bug.getOpeningVer()).
 					append(", Fix: ").append(bug.getFixVer()).
+					append(", Affected: ").append(bug.getAffectedVers()).
 					append("}");
 		}
 		log = stringBuilder.toString();
 		logger.info(log);
 
-		relMan.removeSecondHalfOfReleases(); //Cut the second half of the releases to get reliable input
 		Map<String, Map<RevCommit, LocalDate>> cmPerRelease = relMan.matchCommitsAndReleases(commits);
 
 		/*LOG*/
@@ -133,7 +151,15 @@ public class DatasetManager {
 		log = stringBuilder.toString();
 		logger.info(log);
 
-		String dataset = CSVManager.getInstance().getDataset(project, dt.getFiles()); //Create the dataset
+		removeSecondHalfOfReleases(files, relMan.getReleaseNames()); //Cut the second half of the releases to get reliable input
+
+		/*LOG*/
+		stringBuilder.replace(0, stringBuilder.length(),"Trimmed releases: ");
+		stringBuilder.append(Arrays.toString(files.keySet().toArray()));
+		log = stringBuilder.toString();
+		logger.info(log);
+
+		String dataset = CSVManager.getInstance().getDataset(project, files); //Create the dataset
 
 		return new Pair<>(dataset, relMan.getReleaseNames());
 	}
@@ -161,6 +187,22 @@ public class DatasetManager {
 		}
 
 		return (double)counter/numCommits;
+	}
+
+	/**
+	 * Cuts the dataset to the first half of the releases retrieved
+	 * to get more reliable input in terms of percentage of snoring classes.
+	 *
+	 * @param files : input list to cut in half
+	 * @param releases : list of available releases used to retrieve keys of 'files'
+	 * */
+	private void removeSecondHalfOfReleases(Map<String, List<FileMetadata>> files, String[] releases) {
+		int tot = releases.length;
+		int half = Math.floorDiv(tot,2);
+
+		for(int i=half; i<tot; i++){
+			files.remove(releases[i]);
+		}
 	}
 
 }

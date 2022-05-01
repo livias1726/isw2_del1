@@ -7,12 +7,21 @@ import java.util.logging.*;
 
 import javafx.util.Pair;
 import main.dataset.control.DatasetManager;
+import main.training.AnalysisManager;
 
+/**
+ * Starting class.
+ * */
 public class Main {
 
 	private static Logger logger = null;
     private static final String PROJECT = "OPENJPA"; //change the name to change the project to analyze
 
+	/**
+	 * Main method.
+	 *
+	 * Calls the controllers to create the dataset and uses it to train the ML models.
+	 * */
 	public static void main(String[] args) {
 		System.setProperty("project_name", PROJECT);
 
@@ -24,14 +33,15 @@ public class Main {
                 System.setProperty("date_limit", LocalDate.now().toString());
             }
 
+			//logger configuration
 			prepareLogger();
 
 			//dataset construction
-			Pair<String, String[]> datasetCSV = DatasetManager.getInstance(PROJECT).getDataset(logger);
+			Pair<String, String[]> datasetCSV = DatasetManager.getInstance(PROJECT).getDataset();
 			logger.info("Dataset construction: SUCCESS.");
 
 			//training
-			//AnalysisManager.getInstance().getAnalysis(project, datasetCSV.getKey(), datasetCSV.getValue());
+			//AnalysisManager.getInstance().getAnalysis(PROJECT, datasetCSV.getKey(), datasetCSV.getValue());
 
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -39,12 +49,15 @@ public class Main {
 		}
 	}
 
+	/**
+	 * Configures the logger for the program using the properties file in the resources' directory.
+	 * */
 	private static void prepareLogger() {
 		InputStream stream = Main.class.getClassLoader().getResourceAsStream("logging.properties");
 
 		try {
 			LogManager.getLogManager().readConfiguration(stream);
-			logger = Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
+			logger = Logger.getLogger(PROJECT);
 
 		} catch (IOException e) {
 			e.printStackTrace();

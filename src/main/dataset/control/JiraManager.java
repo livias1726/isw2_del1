@@ -10,7 +10,9 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 /**
- * Used to fetch results from Jira REST-API
+ * Controller class.
+ *
+ * Uses REST-API to retrieve Jira information
  * */
 public class JiraManager {
 
@@ -18,9 +20,11 @@ public class JiraManager {
 
 	//Instantiation
 	private static JiraManager instance = null;
+
 	private JiraManager(String project) {
 		this.project = project;
 	}
+
 	public static JiraManager getInstance(String projName) {
 		if(instance == null) {
 			instance = new JiraManager(projName);
@@ -29,12 +33,13 @@ public class JiraManager {
 	}
 
 	/**
-	 * Retrieves every version officially released and not archived of the project.
+	 * Retrieves every version officially released.
 	 *
-	 * @return : maps every release name to its period of time
+	 * @return : map of every release and its release date
 	 * */
 	public Map<String, LocalDate> getProjectVersions() throws IOException {
 		Map<String, LocalDate> releases = new LinkedHashMap<>();
+
 		String url = "https://issues.apache.org/jira/rest/api/2/project/" + project;
 
 		JSONArray versions = JSONManager.getInstance().readJsonFromUrl(url).getJSONArray("versions");
@@ -53,6 +58,7 @@ public class JiraManager {
 			}
 		}
 
+		//releases were not retrieved in the correct order of release date
 		Map<String, LocalDate> orderedReleases = new LinkedHashMap<>();
 		releases.entrySet().stream().sorted(Map.Entry.comparingByValue()).
 				forEachOrdered(x -> orderedReleases.put(x.getKey(), x.getValue()));
@@ -92,7 +98,7 @@ public class JiraManager {
 	}
 
 	/**
-	 * Parses the results of the REST-API invocation.
+	 * Parses the results of the REST-API invocation on tickets.
 	 * From the retrieved information, the bugs are associated with:
 	 * 		- The key
 	 * 		- The opening date
@@ -105,7 +111,7 @@ public class JiraManager {
 	 *
 	 * @return : list of bugs
 	 * */
-	public List<Bug> parseTickets(int i, int j, String url) throws IOException{
+	private List<Bug> parseTickets(int i, int j, String url) throws IOException{
 		
 		List<Bug> bugs = null;
 
@@ -139,6 +145,13 @@ public class JiraManager {
 		return bugs;
 	}
 
+	/**
+	 * Parses the results of the REST-API invocation on versions.
+	 *
+	 * @param versions : array of JSONObject instances representing releases
+	 *
+	 * @return : list of releases
+	 * */
 	private List<String> parseJSONVersions(JSONArray versions) {
 		List<String> list = new ArrayList<>();
 

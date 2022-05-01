@@ -1,7 +1,6 @@
 package main.dataset.entity;
 
 import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 import org.eclipse.jgit.revwalk.RevCommit;
@@ -47,7 +46,7 @@ public class FileMetadata{
 	public FileMetadata(String filename, String firstRel, RevCommit createCm, LocalDate creationDate, String auth) {
 		setFilename(filename);
 		setCreation(createCm, creationDate);
-		addRelease(firstRel);
+		addRevision(firstRel, createCm);
 		addAuthor(auth);
 	}
 
@@ -67,6 +66,8 @@ public class FileMetadata{
 		setFixCounter(src.getFixCounter());										//Number of fixes involving the file
 		setAuthors(src.getAuthors());											//Authors for the file
 		setChgSet(src.getChgSet());												//Changing set
+		setDeleted(src.isDeleted());											//Deleted
+		setLastModified(src.getLastModified());									//Last modified
 		setBuggynessSet(src.getBuggynessSet());									//Buggyness
 	}
 	
@@ -86,7 +87,8 @@ public class FileMetadata{
 
 	//Age
 	public long getAge() {return this.age;}
-	public void setAge(long age) {this.age = age;}
+	public void setAge(long age) {this.age = age;}	/*Used to set the age of a file that is being removed or files that
+													are in a release by the end of it*/
 
 	//Last modification date
 	public LocalDate getLastModified() {return this.lastModified;}
@@ -108,11 +110,7 @@ public class FileMetadata{
 	public List<String> getAuthors(){
 		return this.authors;
 	}
-	public void setAuthors(List<String> list) {
-		for (String s : list) {
-			addAuthor(s);
-		}
-	}
+	public void setAuthors(List<String> list) { this.authors = new ArrayList<>(list);}
 
 	//Lines of code added per revision
 	public Map<String, Map<RevCommit, Integer>> getLOCAddedPerRev(){return this.locAddedPerRevision;}
@@ -235,6 +233,10 @@ public class FileMetadata{
 		int numTotRev = getRevisionNumberForAvgChurn(release);
 		int churn = getChurnOverRevision(release);
 
+		if(numTotRev == 0){
+			return numTotRev;
+		}
+
 		return (double) churn/numTotRev;
 	}
 
@@ -290,7 +292,15 @@ public class FileMetadata{
 	//-----------------------------------------------------Internal-----------------------------------------------------
 
 	//Used in 'addModification' and constructor
-	private void addRelease(String release) { revisions.put(release, new ArrayList<>()); }
+	private void addRevision(String release, RevCommit commit) {
+		if(!revisions.containsKey(release)){
+			revisions.put(release, new ArrayList<>());
+		}
+
+		if(!revisions.get(release).contains(commit)){
+			revisions.get(release).add(commit);
+		}
+	}
 
 	//Used in 'addModification' and constructor
 	private void addAuthor(String author) {
@@ -359,13 +369,11 @@ public class FileMetadata{
 	 * */
 	public void addModification(String release, RevCommit to, LocalDate modDate, String auth, List<String> affectedVersions) {
 		setLastModified(modDate); //updates the last modification date
-		setAge(ChronoUnit.WEEKS.between(getCreation().getValue(), modDate)); //updates file age in terms of weeks
 
 		//Manage new revision
-		if(release != null && !revisions.containsKey(release)){
-			addRelease(release);
+		if(release != null){
+			addRevision(release, to);
 		}
-		revisions.get(release).add(to);
 
 		//Manage new author
 		if(auth != null && !getAuthors().contains(auth)) {

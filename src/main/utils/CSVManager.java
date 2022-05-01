@@ -48,7 +48,7 @@ public class CSVManager {
 				rel = entry.getKey();
 
 				for(FileMetadata file: entry.getValue()) {
-					if(file.getAge() < 0) { //TODO: manage files with negative ages
+					if(file.getSize() < 0) { //TODO: manage files with negative size
 						continue;
 					}
 

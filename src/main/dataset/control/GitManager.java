@@ -8,12 +8,15 @@ import org.eclipse.jgit.diff.DiffFormatter;
 import org.eclipse.jgit.diff.RawTextComparator;
 import org.eclipse.jgit.lib.ObjectReader;
 import org.eclipse.jgit.revwalk.RevCommit;
+import org.eclipse.jgit.revwalk.RevTree;
 import org.eclipse.jgit.revwalk.filter.CommitTimeRevFilter;
 import org.eclipse.jgit.revwalk.filter.RevFilter;
 import org.eclipse.jgit.treewalk.AbstractTreeIterator;
 import org.eclipse.jgit.treewalk.CanonicalTreeParser;
 import org.eclipse.jgit.treewalk.EmptyTreeIterator;
+import org.eclipse.jgit.treewalk.TreeWalk;
 import org.eclipse.jgit.treewalk.filter.PathSuffixFilter;
+import org.eclipse.jgit.treewalk.filter.TreeFilter;
 
 import java.io.File;
 import java.io.IOException;
@@ -21,15 +24,22 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.*;
 
+/**
+ * Controller class.
+ *
+ * Uses Git API to retrieve commits information and differences between pairs of commits.
+ * */
 public class GitManager {
 
     private final String path;
 
     //Instantiation
     private static GitManager instance = null;
+
     private GitManager(String projName) {
         this.path = "..\\Sources\\" + projName;
     }
+
     public static GitManager getInstance(String projName) {
         if(instance == null) {
             instance = new GitManager(projName);
@@ -38,12 +48,12 @@ public class GitManager {
     }
 
     /**
-     * Retrieves every commit associated to a Jira bug ticket.
+     * Retrieves every commit of the repository until the 'date_limit' property value.
      *
      * @return : map of repository commits with date
      * */
     public Map<RevCommit, LocalDate> getCommits() throws GitAPIException {
-        Map<RevCommit, LocalDate> commits = new HashMap<>();
+        Map<RevCommit, LocalDate> commits = new LinkedHashMap<>();
 
         //Set date filter to get only the useful commits
         LocalDate dateLimit = LocalDate.parse(System.getProperty("date_limit"));
@@ -57,9 +67,7 @@ public class GitManager {
         LocalDate cmDate;
         for(RevCommit cm : log){
             cmDate = cm.getAuthorIdent().getWhen().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
-            if(cmDate.isBefore(dateLimit) || cmDate.isEqual(dateLimit)){
-                commits.put(cm, cmDate);
-            }
+            commits.put(cm, cmDate);
         }
 
         git.close();
@@ -67,37 +75,52 @@ public class GitManager {
     }
 
     /**
-     * Manages the commits associated to a bug.
+     * Manages the commits associated to a bug ticket.
      *
-     * @param bugs : list of Bugs
+     * @param bugs : list of Bug instances
      * @param commits : project commits
      *
      * @return : input list to which Git information is added
      */
     public List<Bug> manageBugCommits(List<Bug> bugs, Map<RevCommit, LocalDate> commits) {
-        LocalDate cmDate;
 
-        for(Bug bug: bugs) {
-            for(Map.Entry<RevCommit, LocalDate> entry: commits.entrySet()){
-                if(entry.getKey().getFullMessage().contains(bug.getTicketKey())){
-                    cmDate = entry.getValue();
-                    if(bug.getFixDate().equals(cmDate)){
-                        bug.setFixCm(entry.getKey());
+        for(Bug bug: bugs) { //scan bug tickets
+            for(Map.Entry<RevCommit, LocalDate> entry: commits.entrySet()){ //scan commits
+
+                if(entry.getKey().getFullMessage().contains(bug.getTicketKey())){ //commit references ticket
+
+                    if(bug.getFixDate().equals(entry.getValue())){ //bug fix date equals commit date
+                        bug.setFixCm(entry.getKey()); //commit is the one that fixes the bug
 
                     }else{
-                        bug.setReferencingCms(entry.getKey());
+                        bug.setReferencingCms(entry.getKey()); //commit is just referencing the bug
                     }
                 }
             }
         }
+
         return bugs;
     }
 
+    /**
+     * Removes from the bug tickets list the ones that no commit references.
+     *
+     * @param bugs : list of Bug instances
+     *
+     * @return : updated list of Bug instances
+     * */
     public List<Bug> removeUnreferencedBugs(List<Bug> bugs) {
         bugs.removeIf(bug -> bug.getFixCm() == null && bug.getReferencingCms() == null);
         return bugs;
     }
 
+    /**
+     * Sets as 'fix commit', for the bugs that don't have one, the latest referencing commit.
+     *
+     * @param bugs : list of Bug instances
+     *
+     * @return : updated list of Bug instances
+     * */
     public List<Bug> processFixCommitInfo(List<Bug> bugs) {
         for(Bug bug: bugs){
             if(bug.getFixCm() == null){
@@ -107,6 +130,15 @@ public class GitManager {
         return bugs;
     }
 
+    /**
+     * Configures the difference formatter class and retrieve the difference tree between pairs of sequential commits.
+     *
+     * @param diffFormatter : DiffFormatter instance
+     * @param from : first commit from which compute the differences
+     * @param to : second commit that produced the differences to compute
+     *
+     * @return : list of DiffEntry instances
+     * */
     public List<DiffEntry> retrieveDifferences(DiffFormatter diffFormatter, RevCommit from, RevCommit to) throws GitAPIException, IOException {
         Git git = Git.init().setDirectory(new File(path)).call();
 
@@ -129,5 +161,28 @@ public class GitManager {
         git.close();
 
         return diffs;
+    }
+
+    public List<String> retrieveFilesInTree(RevCommit commit) throws GitAPIException, IOException {
+        List<String> files = new ArrayList<>();
+
+        Git git = Git.init().setDirectory(new File(path)).call();
+
+        TreeFilter filter = PathSuffixFilter.create(".java");
+        RevTree tree = commit.getTree();
+        TreeWalk treeWalk = new TreeWalk(git.getRepository());
+        treeWalk.setFilter(filter);
+        treeWalk.addTree(tree);
+        treeWalk.setRecursive(false);
+
+        while (treeWalk.next()) {
+            if (treeWalk.isSubtree()) {
+                treeWalk.enterSubtree();
+            } else {
+                files.add(treeWalk.getPathString());
+            }
+        }
+
+        return files;
     }
 }

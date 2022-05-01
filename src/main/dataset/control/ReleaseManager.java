@@ -1,25 +1,41 @@
 package main.dataset.control;
 
+import javafx.util.Pair;
 import main.dataset.entity.Bug;
-import org.apache.commons.lang3.ArrayUtils;
 import org.eclipse.jgit.revwalk.RevCommit;
 
 import java.time.LocalDate;
 import java.util.*;
 
+/**
+ * Controller class.
+ *
+ * Manages every information related to versions, including computation for
+ * the injected version, the opening version and the fix version of every bug found in Jira.
+ * */
 public class ReleaseManager {
 
-	private final Map<String, LocalDate> releases;
-	private String[] releaseNames;
-	private LocalDate[] startDates;
-	private LocalDate[] endDates;
+	private static Map<String, LocalDate> releases;
+	private static String[] releaseNames;
+	private static LocalDate[] startDates;
+	private static LocalDate[] endDates;
 
 	private static double p; //Proportion factor
 
 	//Instantiation
 	private static ReleaseManager instance = null;
 
-    private ReleaseManager(Map<String, LocalDate> releasesList) {
+    private ReleaseManager() {/**/}
+
+    public static ReleaseManager getInstance() {
+        if(instance == null) {
+        	instance = new ReleaseManager();
+        }
+        return instance;
+    }
+
+	//Getters & Setters
+	public void setReleases(Map<String, LocalDate> releasesList){
 		releases = releasesList;
 		releaseNames = releases.keySet().toArray(new String[0]);
 		startDates = releases.values().toArray(new LocalDate[0]);
@@ -32,14 +48,6 @@ public class ReleaseManager {
 		endDates[i] = LocalDate.parse(System.getProperty("date_limit"));
 	}
 
-    public static ReleaseManager getInstance(Map<String, LocalDate> releases) {
-        if(instance == null) {
-        	instance = new ReleaseManager(releases);
-        }
-        return instance;
-    }
-
-	//Getters & Setters
 	public String[] getReleaseNames() {
 		return releaseNames;
 	}
@@ -50,155 +58,247 @@ public class ReleaseManager {
 
 	public static void setProportion(double newP){ p = newP; }
 
+	//-------------------------------------------Functionalities-----------------------------------------------------
 	/**
 	 * Sets opening and fix version for every bug in the list, based on the ticket info set during creation.
-	 *
-	 * For every bug that is considered:
-	 * 		the affected versions are validated, if present, and the Proportion variable ('p') is updated or used to
-	 * 		compute an approximation of the affected versions.
-	 *
-	 * The injected version is computed in one of 2 ways:
-	 * 		If the affected versions are valid, the IV is the oldest and the proportion variable is updated;
-	 * 		Else, the proportion variable is used.
-	 *
-	 * Every bug that has the same version for injection and fix is removed from the list: if the project is analyzed
-	 * at the end of that release, those bug will not be a failure in the release.
 	 *
 	 * @param bugs : list of bugs
 	 *
 	 * @return : input list updated
 	 * */
-	public List<Bug> analyzeBugReleases(List<Bug> bugs) {
-		List<Bug> newBugs = new ArrayList<>();
-		for(Bug bug: bugs){
+	public List<Bug> analyzeOpeningAndFix(List<Bug> bugs) {
+		List<Bug> tempBugs = new ArrayList<>(bugs);
 
-			//Manage opening and fix version
-			Bug newBug = getOpeningAndFixVersions(bug);
-			//The bug is not considered if the opening and/or the fix date are not contained in the releases
-			if((newBug.getOpeningVer() != null) && (newBug.getFixVer() != null)){
-				//Compute injected version with Proportion
-				computeInjectedVersion(newBug);
-
-				//The bug is not considered if it is injected and fixed in the same version
-				if(!newBug.getInjectedVer().equals(newBug.getFixVer())){
-					if(newBug.getAffectedVers() == null){
-						newBug.setAffectedVers(new ArrayList<>());
-					}
-					//If the bug does not have valid AVs, compute them
-					if(newBug.getAffectedVers().isEmpty()){
-						computeAffectedVersions(newBug);
-					}
-
-					newBugs.add(newBug); //Store the updated bug
-				}
+		Pair<String, String> vers;
+		for(Bug bug: bugs) {
+			vers = getOpeningAndFixVersions(bug); //manage opening and fix version
+			if ((vers.getKey() != null) && (vers.getValue() != null)) {	/*The bug is not considered if the
+																					opening and/or the fix date are not
+																					contained in the releases*/
+				bug.setOpeningVer(vers.getKey());
+				bug.setFixVer(vers.getValue());
+			}else{
+				tempBugs.remove(bug);
 			}
 		}
 
-		return newBugs;
-	}
-
-	/**
-	 * Computes the AVs for the bug using information about IV and FV.
-	 * */
-	private void computeAffectedVersions(Bug bug) {
-		List<String> avs = bug.getAffectedVers();
-		int inj = getIndexFromRelease(bug.getInjectedVer());
-		int fix = getIndexFromRelease(bug.getFixVer());
-
-		List<String> listRel = new ArrayList<>(releases.keySet());
-
-		avs.addAll(listRel.subList(inj, fix - 1));
-		bug.setAffectedVers(avs);
+		return tempBugs;
 	}
 
 	/**
 	 * Retrieves the opening and fix versions from the opening and fix date of the ticket.
+	 *
+	 * @param bug : instance for which retrieve the opening and fix versions
+	 *
+	 * @return : opening and fix version
 	 * */
-	private Bug getOpeningAndFixVersions(Bug bug) {
+	private Pair<String, String> getOpeningAndFixVersions(Bug bug) {
 		LocalDate openingDate = bug.getOpeningDate();
 		LocalDate fixDate = bug.getFixDate();
 		LocalDate end;
 		String rel;
 		LocalDate start;
 
-		boolean openIsPresent = false;
-		boolean fixIsPresent = false;
+		String openingVers = null;
+		String fixVers = null;
 
 		for(int i=0; i<releaseNames.length; i++){
 			rel = releaseNames[i];
 			start = startDates[i];
 			end = endDates[i];
 
-			//opening date is between the start and the end of the release -> set as opening release
+			//opening date is between the start and the end of the release
 			if ((openingDate.isAfter(start) || openingDate.isEqual(start)) && openingDate.isBefore(end)) {
-				bug.setOpeningVer(rel);
-				openIsPresent = true;
+				openingVers = rel;
 			}
 
-			//fix date is between the start and the end of the release -> set as fix release
+			//fix date is between the start and the end of the release
 			if ((fixDate.isAfter(start) || fixDate.isEqual(start)) && fixDate.isBefore(end)) {
-				bug.setFixVer(rel);
-				fixIsPresent = true;
+				fixVers = rel;
 			}
 
 			//versions are both found
-			if(openIsPresent && fixIsPresent){
-				return bug;
+			if(openingVers != null && fixVers != null){
+				return new Pair<>(openingVers, fixVers);
 			}
 		}
 
-		return bug;
+		return new Pair<>(openingVers, fixVers);
+	}
+
+	/**
+	 * Sets opening and fix version for every bug in the list, based on the ticket info set during creation.
+	 *
+	 * For every bug that is considered, the affected versions, if present, are validated and
+	 * the Proportion variable 'p' is updated or used to compute an approximation of the affected versions.
+	 *
+	 * The injected version is computed in one of 2 ways:
+	 * 		- If the affected versions are valid, the IV is the oldest and the proportion variable is updated;
+	 * 		- Else, the proportion variable is used.
+	 *
+	 * Every bug that has the same version for injection and fix is removed from the list:
+	 * if the project is analyzed at the end of that release, those bugs will not be a failure in the release.
+	 *
+	 * @param bugs : list of bugs
+	 *
+	 * @return : input list updated
+	 * */
+	public List<Bug> analyzeBugInfection(List<Bug> bugs) {
+		List<Bug> valid = new ArrayList<>();
+		List<Bug> invalid = new ArrayList<>();
+
+		for(Bug bug: bugs){ //divide bugs with valid AVs and bugs with invalid AVs
+			if(hasValidAVs(bug)){
+				bug.setInjectedVer(getOldestVersion(bug.getAffectedVers())); //set injected version for bugs with valid affected versions
+				valid.add(bug);
+			}else{
+				invalid.add(bug);
+			}
+		}
+
+		Map<String, List<Bug>> validOrderedByFix = getBugsByRelease(valid);
+		Map<String, List<Bug>> invalidOrderedByFix = getBugsByRelease(invalid);
+		invalidOrderedByFix.remove(releaseNames[0]); //bugs fixed in the first release don't affect other releases
+
+		invalid = computeProportion(invalidOrderedByFix, validOrderedByFix);
+		valid.addAll(invalid);
+
+		return valid;
+	}
+
+	private List<Bug> computeProportion(Map<String, List<Bug>> invalid, Map<String, List<Bug>> valid) {
+		List<Bug> bugs = new ArrayList<>();
+
+		for(Map.Entry<String, List<Bug>> invEntry: invalid.entrySet()){
+			String currRel = invEntry.getKey();
+
+			//Proportion computation
+			List<Bug> usedForProportion = new ArrayList<>();
+			for(Map.Entry<String, List<Bug>> validEntry: valid.entrySet()){
+				if(validEntry.getKey().equals(currRel)){ //when the scan reaches the release to analyze update proportion
+					setProportion(updateProportion(usedForProportion));
+					break;
+				}
+
+				usedForProportion.addAll(validEntry.getValue());
+			}
+
+			//IV + AVs computation
+			for(Bug bug: invEntry.getValue()){
+				bug.setInjectedVer(computeInjectedVersion(bug)); //use the updated proportion to get IV
+
+				if(!bug.getInjectedVer().equals(bug.getFixVer())){	/*The bug is not considered if it is
+																	injected and fixed in the same version*/
+					bug.setAffectedVers(computeAffectedVersions(bug));
+					bugs.add(bug);
+				}
+			}
+		}
+
+		return bugs;
+	}
+
+	private Map<String, List<Bug>> getBugsByRelease(List<Bug> bugs) {
+		Map<String, List<Bug>> bugsByRelease = new LinkedHashMap<>();
+
+		for(String rel: releaseNames){
+			List<Bug> list = new ArrayList<>();
+
+			for(Bug bug: bugs){
+				if(rel.equals(bug.getFixVer())){
+					list.add(bug);
+				}
+			}
+
+			bugsByRelease.put(rel, list);
+		}
+
+		return bugsByRelease;
+	}
+
+	/**
+	 * Compute proportion factor for given interval of releases.
+	 * */
+	private double updateProportion(List<Bug> bugs) {
+		double iFix;
+		double iOpen;
+		double iInj;
+
+		double prop = 0;
+		if(bugs.size() == 0){
+			return prop;
+		}
+
+		for(Bug bug: bugs){
+			iFix = getIndexFromRelease(bug.getFixVer());
+			iOpen = getIndexFromRelease(bug.getOpeningVer());
+			iInj = getIndexFromRelease(bug.getInjectedVer());
+
+			if(iFix - iOpen != 0){ //TODO: check validity of this statement
+				prop += (iFix - iInj)/(iFix - iOpen);
+			}
+		}
+
+		return prop/bugs.size();
+	}
+
+	/**
+	 * Computes the affected versions for the bug using information about injected version and fix version.
+	 *
+	 * @param bug : instance for which the affected versions are computed
+	 * */
+	private List<String> computeAffectedVersions(Bug bug) {
+
+		int inj = getIndexFromRelease(bug.getInjectedVer());
+		int fix = getIndexFromRelease(bug.getFixVer());
+
+		List<String> listRel = new ArrayList<>(releases.keySet());
+		return new ArrayList<>(listRel.subList(inj-1, fix-1)); //indexes retrieved start from 1 by construction
 	}
 
 	/**
 	 * Checks if the affected versions listed in the Jira ticket are coherent.
 	 *
 	 * @param bug : Bug instance
+	 *
+	 * @return : flag for affected versions validity
 	 * */
-	private void computeInjectedVersion(Bug bug) {
-
-		String injVer = null;
-		boolean valid = true;
+	private boolean hasValidAVs(Bug bug) {
 		List<String> avs = bug.getAffectedVers();
 
 		if(avs == null || avs.isEmpty()){ //NO info on AVs is present in Jira
-			valid = false;
+			return false;
 		}
 
-		if(valid){
-			for(String av: avs) {
-				if(!releases.containsKey(av)){ //Version not in the released list
-					bug.setAffectedVers(new ArrayList<>()); //Clean up the AVs list
-					valid = false;
-					break;
-				}
-			}
-		}
-
-		if(valid && avs.contains(bug.getFixVer())){ //Fix version is in the list
-			bug.setAffectedVers(new ArrayList<>()); //Clean up the AVs list
-			valid = false;
-		}
-
-		if(valid){
-			injVer = getOlderVersion(avs);
-			if (releases.get(injVer).isAfter(bug.getOpeningDate())){ //The older AV is after the OV
+		for(String av: avs) {
+			if(!releases.containsKey(av)){ //Version not in the released list
 				bug.setAffectedVers(new ArrayList<>()); //Clean up the AVs list
-				valid = false;
+				return false;
 			}
 		}
 
-		if(valid){ //Affected versions are valid: realist method to compute AVs and IV
-			bug.setInjectedVer(injVer);
-			updateProportion(bug);
-
-		}else{
-			injVer = retrieveInjectedVersion(bug); //Use the proportion percentage
-			bug.setInjectedVer(injVer);
+		if(avs.contains(bug.getFixVer())){ //Fix version is in the list
+			bug.setAffectedVers(new ArrayList<>()); //Clean up the AVs list
+			return false;
 		}
+
+		String injVer = getOldestVersion(avs);
+		if (releases.get(injVer).isAfter(bug.getOpeningDate())){ //The older AV is after the OV
+			bug.setAffectedVers(new ArrayList<>()); //Clean up the AVs list
+			return false;
+		}
+
+		return true;
 	}
 
-	private String getOlderVersion(List<String> versions) {
+	/**
+	 * Gets the oldest (that was first released) version between a list of versions.
+	 *
+	 * @param versions : list of versions
+	 *
+	 * @return : oldest version
+	 * */
+	public String getOldestVersion(List<String> versions) {
 		LocalDate firstDate = null;
 		String firstAv = null;
 
@@ -212,33 +312,26 @@ public class ReleaseManager {
 		return firstAv;
 	}
 
-	private void updateProportion(Bug bug) {
-		int iFix = getIndexFromRelease(bug.getFixVer());
+	/**
+	 * Uses the computed value for Proportion to calculate the injected version of a Bug.
+	 *
+	 * @param bug : the instance to compute the injected version of
+	 *
+	 * @return : injected version
+	 * */
+	private String computeInjectedVersion(Bug bug) {
 		int iOpen = getIndexFromRelease(bug.getOpeningVer());
-		int iInj = getIndexFromRelease(bug.getInjectedVer());
-
-		//TODO: check if the corrective term (+1) is correct
-		setProportion(((double)(iFix - iInj)/(iFix - iOpen + 1) + p)/2); //Mean value between the new proportion and the old
-	}
-
-	private String retrieveInjectedVersion(Bug bug) {
 		int iFix = getIndexFromRelease(bug.getFixVer());
-		int iOpen = getIndexFromRelease(bug.getOpeningVer());
+		int iInj = (int) Math.floor(iFix - (p*(iFix-iOpen)));
 
-		if(p == 0){
-			setProportion(2);
-		}
-
-		int iInj = (int) (iFix - p*(iFix-iOpen));
-
-		if(iInj < 1){
+		if(iInj < 1){ //TODO: ask why proportion would return a negative injVers
 			iInj = 1;
 		}
 
 		return getReleaseFromIndex(iInj);
 	}
 
-	public String getReleaseFromIndex(int i) {
+	private String getReleaseFromIndex(int i) {
 		for(String rel: releases.keySet()){
 			if(i == 1){
 				return rel;
@@ -249,7 +342,7 @@ public class ReleaseManager {
 		return null;
 	}
 
-	public int getIndexFromRelease(String ver) {
+	private int getIndexFromRelease(String ver) {
 		int idx = 1;
 		for(String rel: releases.keySet()){
 			if(ver.equals(rel)){
@@ -260,17 +353,6 @@ public class ReleaseManager {
 		}
 
 		return -1;
-	}
-
-	public void removeSecondHalfOfReleases() {
-		int tot = releaseNames.length;
-		int half = tot/2;
-
-		for(int i=half; i<tot; i++){
-			releaseNames = ArrayUtils.remove(releaseNames, i);
-			startDates = ArrayUtils.remove(startDates, i);
-			endDates = ArrayUtils.remove(endDates, i);
-		}
 	}
 
 	/**
@@ -313,4 +395,5 @@ public class ReleaseManager {
 
 		return cmPerRelease;
 	}
+
 }

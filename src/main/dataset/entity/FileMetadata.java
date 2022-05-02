@@ -293,9 +293,7 @@ public class FileMetadata{
 
 	//Used in 'addModification' and constructor
 	private void addRevision(String release, RevCommit commit) {
-		if(!revisions.containsKey(release)){
-			revisions.put(release, new ArrayList<>());
-		}
+		revisions.computeIfAbsent(release, k -> new ArrayList<>());
 
 		if(!revisions.get(release).contains(commit)){
 			revisions.get(release).add(commit);

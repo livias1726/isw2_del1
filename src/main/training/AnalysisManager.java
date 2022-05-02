@@ -2,8 +2,6 @@ package main.training;
 
 import main.utils.CSVManager;
 
-import java.util.Set;
-
 public class AnalysisManager {
 
 	private static AnalysisManager instance = null;
@@ -20,7 +18,7 @@ public class AnalysisManager {
         return instance;
     }
     
-    public void getAnalysis(String project, String path, Set<String> set) throws Exception {
+    public void getAnalysis(String project, String path, String[] set) throws Exception {
     	WekaManager.getInstance().setWeka(path, set);
 		CSVManager.getInstance().getWekaResult(project, WekaManager.getInstance().getPerformances());
     }

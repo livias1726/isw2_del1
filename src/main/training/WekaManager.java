@@ -6,7 +6,6 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import javafx.util.Pair;
 import weka.attributeSelection.ASSearch;
@@ -103,7 +102,7 @@ public class WekaManager {
 		}
 	}
 	
-	public void setWeka(String path, Set<String> set) throws Exception {
+	public void setWeka(String path, String[] set) throws Exception {
 		//Data set
 		CSVLoader loader = new CSVLoader();
 		loader.setSource(new File(path));
@@ -118,16 +117,14 @@ public class WekaManager {
 		}
 	}
 
-	public List<Instances> separateFolds(Instances data, Set<String> set) {
+	public List<Instances> separateFolds(Instances data, String[] set) {
 		List<Instances> res = new ArrayList<>();
-		
-		Iterator<String> iter = set.iterator();
-		String rel;
+
 		int i;
 		Integer first = null;
 		int toCopy = 0;
-		while(iter.hasNext()) {
-			rel = iter.next();
+
+		for(String rel: set){
 			for(i=0; i<data.numInstances(); i++) {
 				if(data.instance(i).stringValue(1).equals(rel)) {
 					if(first == null) {

@@ -225,7 +225,7 @@ public class ReleaseManager {
 		double iInj;
 
 		double prop = 0;
-		if(bugs.size() == 0){
+		if(bugs.isEmpty()){
 			return prop;
 		}
 
@@ -234,7 +234,7 @@ public class ReleaseManager {
 			iOpen = getIndexFromRelease(bug.getOpeningVer());
 			iInj = getIndexFromRelease(bug.getInjectedVer());
 
-			if(iFix - iOpen != 0){ //TODO: check validity of this statement
+			if(iFix - iOpen != 0){
 				prop += (iFix - iInj)/(iFix - iOpen);
 			}
 		}
@@ -324,7 +324,7 @@ public class ReleaseManager {
 		int iFix = getIndexFromRelease(bug.getFixVer());
 		int iInj = (int) Math.floor(iFix - (p*(iFix-iOpen)));
 
-		if(iInj < 1){ //TODO: ask why proportion would return a negative injVers
+		if(iInj < 1){
 			iInj = 1;
 		}
 

@@ -41,7 +41,7 @@ public class Main {
 			logger.info("Dataset construction: SUCCESS.");
 
 			//training
-			//AnalysisManager.getInstance().getAnalysis(PROJECT, datasetCSV.getKey(), datasetCSV.getValue());
+			AnalysisManager.getInstance().getAnalysis(PROJECT, datasetCSV.getKey(), datasetCSV.getValue());
 
 		} catch (Exception e) {
 			e.printStackTrace();

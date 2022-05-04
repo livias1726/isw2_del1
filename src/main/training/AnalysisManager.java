@@ -4,22 +4,25 @@ import main.utils.CSVManager;
 
 public class AnalysisManager {
 
+    //Instantiation
 	private static AnalysisManager instance = null;
 
-    private AnalysisManager() {
-    	/**/
-    }
+    private AnalysisManager() {/**/}
 
     public static AnalysisManager getInstance() {
         if(instance == null) {
         	instance = new AnalysisManager();
         }
-
         return instance;
     }
     
-    public void getAnalysis(String project, String path, String[] set) throws Exception {
-    	WekaManager.getInstance().setWeka(path, set);
-		CSVManager.getInstance().getWekaResult(project, WekaManager.getInstance().getPerformances());
+    public void getAnalysis(String project, String dataset, String[] releases) throws Exception {
+
+        CSVManager csv = CSVManager.getInstance();
+        csv.prepareCSVForWeka(dataset);
+
+    	WekaManager.getInstance().setWeka(dataset, releases);
+
+		csv.getWekaResult(project, WekaManager.getInstance().getPerformances());
     }
 }

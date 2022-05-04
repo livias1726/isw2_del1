@@ -4,10 +4,7 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import main.dataset.entity.Bug;
 import main.dataset.entity.FileMetadata;
@@ -29,7 +26,7 @@ import javafx.util.Pair;
  * Analyzes the commit log to report every addition, deletion and changing to java files in the project.
  */
 public class DifferenceTreeManager {
-	
+
 	private final String project;
 	private final List<Bug> bugs;
 	private final Map<String, List<FileMetadata>> files; //map of releases and list of files
@@ -179,13 +176,7 @@ public class DifferenceTreeManager {
 		}
 
 		//Check for buggyness
-		List<String> affectedVersions = null;
-		for(Bug bug: bugs){
-			if(bug.getFixCm().equals(to)){ //If the modification commit is related to a fix
-				affectedVersions = bug.getAffectedVers();
-				break;
-			}
-		}
+		List<String> affectedVersions = manageFileBuggyness(bugs, to);
 
 		//Modify the file if the last modification was before the date of the current commit
 		PersonIdent author = to.getAuthorIdent();
@@ -420,6 +411,36 @@ public class DifferenceTreeManager {
 				}
 			}
 		}
+	}
+
+	/**
+	 * Scans the referencing commits of the bugs.
+	 * If the current commit is referencing the bug, the affected versions of the bug are considered
+	 * as releases in which the file modified by the commits was buggy.
+	 *
+	 * @param bugs : list of Bug instances
+	 * @param to : current commit
+	 *
+	 * @return : affected versions
+	 * */
+	private List<String> manageFileBuggyness(List<Bug> bugs, RevCommit to) {
+		Set<String> avsNotDup = new LinkedHashSet<>(); //using a Set to avoid duplicates
+
+		for(Bug bug: bugs){
+			if(bug.getFixCm().equals(to)){ //If the modification commit is related to a fix
+				avsNotDup.addAll(bug.getAffectedVers());
+			}
+
+			if(bug.getReferencingCms() != null){
+				for(RevCommit cm: bug.getReferencingCms()){ //check every referencing commit
+					if(cm.equals(to)){
+						avsNotDup.addAll(bug.getAffectedVers());
+					}
+				}
+			}
+		}
+
+		return new ArrayList<>(avsNotDup);
 	}
 
 }

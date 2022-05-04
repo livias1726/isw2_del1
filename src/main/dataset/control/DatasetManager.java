@@ -3,15 +3,12 @@ package main.dataset.control;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.util.*;
-import java.util.logging.Logger;
 
 import main.dataset.entity.Bug;
 import main.dataset.entity.FileMetadata;
-import main.utils.CSVManager;
+import main.utils.LoggingUtils;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.revwalk.RevCommit;
-
-import javafx.util.Pair;
 
 /**
  * Controller class.
@@ -21,14 +18,15 @@ import javafx.util.Pair;
 public class DatasetManager {
 	
 	private final String project;
+	private Map<String, LocalDate> releases;
+	private List<Bug> bugs;
+	Map<RevCommit, LocalDate> commits;
 
 	//Instantiation
 	private static DatasetManager instance = null;
-
     private DatasetManager(String projectName) {
     	this.project = projectName;
     }
-
     public static DatasetManager getInstance(String projectName) {
         if(instance == null) {
         	instance = new DatasetManager(projectName);
@@ -44,124 +42,71 @@ public class DatasetManager {
 	 *
 	 * @return : dataset filename and project releases
 	 * */
-	public Pair<String, String[]> getDataset() throws GitAPIException, IOException {
-		Logger logger = Logger.getLogger(project);
+	public Map<String, List<FileMetadata>> getDataset() throws GitAPIException, IOException {
 
-		StringBuilder stringBuilder = new StringBuilder();
-		String log;
+		retrieveFromJira();
 
-		//--------------------------------------------------JIRA--------------------------------------------------------
+		retrieveFromGit();
 
-		JiraManager jira = JiraManager.getInstance(project);
-		ReleaseManager relMan = ReleaseManager.getInstance(); //Get releases
-		ReleaseManager.setReleases(jira.getProjectVersions());
+		Map<String, Map<RevCommit, LocalDate>> cmPerRelease = manageReleases();
 
-		/*LOG*/
-		stringBuilder.append("Releases: ");
-		stringBuilder.append(Arrays.toString(relMan.getReleaseNames()));
-		log = stringBuilder.toString();
-		logger.info(log);
+		return manageFiles(cmPerRelease);
+	}
 
-		List<Bug> bugs = jira.getFixes(); //Get list of jira fix tickets
+	private Map<String, List<FileMetadata>> manageFiles(Map<String, Map<RevCommit, LocalDate>> cmPerRelease) throws GitAPIException, IOException {
+		DifferenceTreeManager dt = DifferenceTreeManager.getInstance(project, bugs);
 
-        /*LOG*/
-		stringBuilder.replace(0, stringBuilder.length(),
-				"Total number of Jira tickets retrieved: " + bugs.size());
-		log = stringBuilder.toString();
-		logger.info(log);
+		Map<String, List<FileMetadata>> files = dt.analyzeFilesEvolution(cmPerRelease);
+		LoggingUtils.logFilesPerRelease(files.entrySet());
 
-		//---------------------------------------------------GIT--------------------------------------------------------
+		removeSecondHalfOfReleases(files, ReleaseManager.getInstance().getReleaseNames());	/*Cut the second half of
+		 																					releases to get reliable
+		 																					input*/
+		LoggingUtils.logList("Trimmed releases: ", files.keySet());
 
-		GitManager git = GitManager.getInstance(project);
-		Map<RevCommit, LocalDate> commits = git.getCommits(); //Get list of every commit in the project
+		return files;
+	}
 
-        /*LOG*/
-		stringBuilder.replace(0, stringBuilder.length(),
-				"Total number of commits retrieved: " + commits.size());
-		log = stringBuilder.toString();
-		logger.info(log);
+	private Map<String, Map<RevCommit, LocalDate>> manageReleases() {
+		ReleaseManager.setReleases(releases); //set releases
 
-		bugs = git.manageBugCommits(bugs, commits); //Manage list of commits linked to a jira fix ticket
-
-        /*LOG*/
-		stringBuilder.replace(0, stringBuilder.length(),
-				"Project linkage is: " + getBugLinkage(commits.size(), bugs)*100);
-		log = stringBuilder.toString();
-		logger.info(log);
-
-		bugs = git.removeUnreferencedBugs(bugs); //Must be after the linkage computation
-
-        /*LOG*/
-		stringBuilder.replace(0, stringBuilder.length(),
-				"Number of bugs referenced: " + bugs.size());
-		log = stringBuilder.toString();
-		logger.info(log);
-
-		bugs = git.processFixCommitInfo(bugs);
-
-		//-------------------------------------------------RELEASES-----------------------------------------------------
+		ReleaseManager relMan = ReleaseManager.getInstance();
 
 		bugs = relMan.analyzeOpeningAndFix(bugs); //get opening and fix versions
-
-		/*LOG*/
-		stringBuilder.replace(0, stringBuilder.length(),
-				"Number of bugs with valid opening and fix version: ");
-		stringBuilder.append(bugs.size());
-		log = stringBuilder.toString();
-		logger.info(log);
+		LoggingUtils.logInt("Number of bugs with valid opening and fix version: ", bugs.size());
 
 		bugs = relMan.analyzeBugInfection(bugs); //get injected and affected versions
-
-        /*LOG*/
-		stringBuilder.replace(0, stringBuilder.length(),
-				"Number of bugs with complete information: " + bugs.size() + "\nBUGS:");
-		for(Bug bug: bugs){
-			stringBuilder.append("\n\t").append(bug.getTicketKey()).
-					append(": {Injected: ").append(bug.getInjectedVer()).
-					append(", Opening: ").append(bug.getOpeningVer()).
-					append(", Fix: ").append(bug.getFixVer()).
-					append(", Affected: ").append(bug.getAffectedVers()).
-					append("}");
-		}
-		log = stringBuilder.toString();
-		logger.info(log);
+		LoggingUtils.logBugsInformation(bugs);
 
 		Map<String, Map<RevCommit, LocalDate>> cmPerRelease = relMan.matchCommitsAndReleases(commits);
+		LoggingUtils.logCommitsPerRelease(relMan.getReleaseNames(), cmPerRelease);
 
-		/*LOG*/
-		stringBuilder.replace(0, stringBuilder.length(),"\nCOMMITS PER RELEASE:");
-		for(String rel: relMan.getReleaseNames()){
-			stringBuilder.append("\n\t").append(rel).
-					append(" -> ").append(cmPerRelease.get(rel).keySet().size());
-		}
-		log = stringBuilder.toString();
-		logger.info(log);
+		return cmPerRelease;
+	}
 
-		//--------------------------------------------------FILES-------------------------------------------------------
+	private void retrieveFromGit() throws GitAPIException {
+		GitManager git = GitManager.getInstance(project);
 
-		DifferenceTreeManager dt = DifferenceTreeManager.getInstance(project, bugs);
-		Map<String, List<FileMetadata>> files = dt.analyzeFilesEvolution(cmPerRelease);
+		commits = git.getCommits(); //list of every commit in the project
+		LoggingUtils.logInt("Total number of commits retrieved: ", commits.size());
 
-		/*LOG*/
-		stringBuilder.replace(0, stringBuilder.length(),"\nFILES PER RELEASE:");
-		for(Map.Entry<String, List<FileMetadata>> entry: files.entrySet()){
-			stringBuilder.append("\n\t").append(entry.getKey()).
-					append(" -> ").append(entry.getValue().size());
-		}
-		log = stringBuilder.toString();
-		logger.info(log);
+		bugs = git.manageBugCommits(bugs, commits); //manage list of commits linked to a jira fix ticket
+		LoggingUtils.logDouble("Project linkage is: ", getBugLinkage(commits.size(), bugs)*100);
 
-		removeSecondHalfOfReleases(files, relMan.getReleaseNames()); //Cut the second half of the releases to get reliable input
+		bugs = git.removeUnreferencedBugs(bugs); //must be after the linkage computation
+		LoggingUtils.logInt("Number of bugs referenced: ", bugs.size());
 
-		/*LOG*/
-		stringBuilder.replace(0, stringBuilder.length(),"Trimmed releases: ");
-		stringBuilder.append(Arrays.toString(files.keySet().toArray()));
-		log = stringBuilder.toString();
-		logger.info(log);
+		bugs = git.processFixCommitInfo(bugs); //set the fix commit for every bug considered
+	}
 
-		String dataset = CSVManager.getInstance().getDataset(project, files); //Create the dataset
+	private void retrieveFromJira() throws IOException {
+		JiraManager jira = JiraManager.getInstance(project);
 
-		return new Pair<>(dataset, relMan.getReleaseNames());
+		releases = jira.getProjectVersions(); //list of releases
+		LoggingUtils.logList("Releases: ", releases.keySet());
+
+		bugs = jira.getFixes(); //list of jira fix tickets
+		LoggingUtils.logInt("Total number of Jira tickets retrieved: ", bugs.size());
 	}
 
 	/**

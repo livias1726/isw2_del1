@@ -163,6 +163,12 @@ public class GitManager {
         return diffs;
     }
 
+    /**
+     * Scans the tree at the time of a commit. The tree is filtered for java files.
+     *
+     * @param commit : commit to scan
+     * @return : list of java files in the tree at the time of the commit
+     * */
     public List<String> retrieveFilesInTree(RevCommit commit) throws GitAPIException, IOException {
         List<String> files = new ArrayList<>();
 

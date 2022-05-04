@@ -2,13 +2,14 @@ package main.training;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 import javafx.util.Pair;
 import weka.attributeSelection.ASSearch;
+import weka.core.converters.ArffLoader;
+import weka.core.converters.ArffSaver;
 import weka.filters.supervised.attribute.AttributeSelection;
 import weka.attributeSelection.BestFirst;
 import weka.attributeSelection.CfsSubsetEval;
@@ -27,70 +28,91 @@ import weka.filters.supervised.instance.Resample;
 import weka.filters.supervised.instance.SMOTE;
 import weka.filters.supervised.instance.SpreadSubsample;
 
+/**
+ * Uses Weka API to perform a machine learning classification on the dataset.
+ * */
 public class WekaManager {
 
 	private Map<Integer, List<Integer>> configurations;
-	private final ASSearch[] featSels = {null, new BestFirst()};
-	private final Filter[] samplings = {null, new Resample(), new SpreadSubsample(), new SMOTE()};
-	private final Classifier[] classifiers = {new RandomForest(), new NaiveBayes(), new IBk(3)};
-	private final CostMatrix[] sensitivities = {null, new CostMatrix(2), new CostMatrix(2)};
-	private Map<Pair<Integer,Integer>, List<Double>> performances = new LinkedHashMap<>();
-	
+
+	private final ASSearch[] featSelection; //Feature selection models
+	private final Filter[] samplings; //Sampling models
+	private final Classifier[] classifiers; //Classifiers
+	private final CostMatrix[] sensitivities; //Cost matrices
+
+	//Records the performances obtained for every configuration
+	private final Map<Pair<Integer,Integer>, List<Double>> performances;
+
+	//Instantiation
 	private static WekaManager instance = null;
+
+	/**
+	 * Prepares the Weka analysis with every possible configuration of:
+	 * 	- Feature selection models
+	 * 	- Sampling models
+	 * 	- Classifiers
+	 * 	- Cost matrices
+	 * */
+	private WekaManager() {
+		this.featSelection = new ASSearch[]{null, new BestFirst()};
+		this.samplings = new Filter[]{null, new Resample(), new SpreadSubsample(), new SMOTE()};
+		this.classifiers = new Classifier[]{new RandomForest(), new NaiveBayes(), new IBk(3)};
+		this.sensitivities = new CostMatrix[]{null, new CostMatrix(2), new CostMatrix(2)};
+		this.performances = new LinkedHashMap<>();
+
+		populateCostMatrix(1, 1.0);
+		populateCostMatrix(2, 10.0); //CFN = 10*CFP
+
+		configureAnalysis();
+	}
+
+	private void configureAnalysis() {
+		configurations = new LinkedHashMap<>();
+
+		int configIndex = 0;
+		for(int i=0; i< featSelection.length; i++) { 				//iterates over feature selection models
+			for(int j=0; j<samplings.length; j++){					//iterates over sampling models
+				for(int z=0; z<classifiers.length; z++) {			//iterates over classifiers
+					for(int k=0; k<sensitivities.length; k++) {		//iterates over cost matrices
+
+						List<Integer> list = new ArrayList<>();
+						list.add(i);
+						list.add(j);
+						list.add(z);
+						list.add(k);
+
+						configurations.put(configIndex, list);
+
+						configIndex++;
+					}
+				}
+			}
+		}
+	}
+
+	private void populateCostMatrix(int i, double j) {
+		sensitivities[i].setCell(0, 0, 0.0);
+		sensitivities[i].setCell(0, 1, j);
+		sensitivities[i].setCell(1, 0, 1.0);
+		sensitivities[i].setCell(1, 1, 0.0);
+	}
+
 	public static WekaManager getInstance() {
         if(instance == null) {
         	instance = new WekaManager();
         }
-
         return instance;
     }
 
-    private WekaManager() {
-    	int idx = 0;
-    	configurations = new LinkedHashMap<>();
-    	
-    	sensitivities[1].setCell(0, 0, 0.0);
-    	sensitivities[1].setCell(0, 1, 1.0);
-    	sensitivities[1].setCell(1, 0, 1.0);
-    	sensitivities[1].setCell(1, 1, 0.0);
-    	
-    	//CFN = 10*CFP
-    	sensitivities[2].setCell(0, 0, 0.0);
-    	sensitivities[2].setCell(0, 1, 10.0);
-    	sensitivities[2].setCell(1, 0, 1.0);
-    	sensitivities[2].setCell(1, 1, 0.0);
-    	
-    	int i;
-    	int j;
-    	int z;
-    	int k;
-    	for(i=0; i<featSels.length; i++) {
-    		for(j=0; j<samplings.length; j++){
-    			for(z=0; z<classifiers.length; z++) {
-    				for(k=0; k<sensitivities.length; k++) {
-    					List<Integer> list = new ArrayList<>();
-    					list.add(i);
-    					list.add(j);
-    					list.add(z);
-    					list.add(k);
-    					configurations.put(idx, list);
-    					
-    					idx++;
-    				}
-    			}
-    		}
-    	}
-    }
+	//-------------------------------------------------Getters & Setters------------------------------------------------
 
-	public Map<Pair<Integer,Integer>, List<Double>> getPerformances() {
-		return performances;
-	}
+	public Map<Pair<Integer,Integer>, List<Double>> getPerformances() {return performances;}
 	
 	public Object getConfigurations(Integer numConfig, int element) {
 		List<Integer> list = this.configurations.get(numConfig);
 		switch(element) {
 			case 0:
-				return this.featSels[list.get(element)];
+				return this.featSelection[list.get(element)];
 			case 1:
 				return this.samplings[list.get(element)];
 			case 2:
@@ -101,30 +123,72 @@ public class WekaManager {
 				return null;
 		}
 	}
-	
-	public void setWeka(String path, String[] set) throws Exception {
-		//Data set
-		CSVLoader loader = new CSVLoader();
-		loader.setSource(new File(path));
+
+	/**
+	 *
+	 * */
+	public void setWeka(String datasetName, String[] releases) throws Exception {
+
+		String arffDataset = convertCSVToArff(datasetName); //get the arff from the csv
+
+		//Load the dataset
+		ArffLoader loader = new ArffLoader();
+		loader.setSource(new File(arffDataset));
+
 		Instances data = loader.getDataSet();
-		data.setClassIndex(data.numAttributes() - 1);
+		data.setClassIndex(data.numAttributes() - 1); //set class index
 		
-		List<Instances> sets = separateFolds(data, set);
+		List<Instances> sets = separateFolds(data, releases); //generate folds per release
 		
 		int idx = 0;
 		for(List<Integer> l: configurations.values()) {
-			walkForwardPerRelease(sets, featSels[l.get(0)], samplings[l.get(1)], classifiers[l.get(2)], sensitivities[l.get(3)], idx++);		
+			walkForwardPerRelease(sets, featSelection[l.get(0)], samplings[l.get(1)], classifiers[l.get(2)], sensitivities[l.get(3)], idx++);
 		}
 	}
 
-	public List<Instances> separateFolds(Instances data, String[] set) {
+	/**
+	 * Converts a CSV file in an ARFF file.
+	 *
+	 * @param csvFile : the path of the csv file
+	 *
+	 * @return : new path
+	 * */
+	private String convertCSVToArff(String csvFile) throws Exception {
+		//Load CSV
+		CSVLoader loader = new CSVLoader();
+		loader.setSource(new File(csvFile));
+
+		//CSV uses no header
+		String[] options = new String[1];
+		options[0] = "-H";
+		loader.setOptions(options);
+
+		//Save ARFF
+		ArffSaver saver = new ArffSaver();
+		saver.setInstances(loader.getDataSet());
+
+		csvFile = csvFile.replace(".csv", ".arff");
+
+		// saver.setDestination(new File(filename));
+		saver.setFile(new File(csvFile));
+		saver.writeBatch();
+
+		return csvFile;
+	}
+
+	/**
+	 * Prepares folds to execute a Walk-forward training approach.
+	 * Separates the dataset per release.
+	 * TODO: check if an approach based on the number of files per fold is preferable
+	 * */
+	public List<Instances> separateFolds(Instances data, String[] releases) {
 		List<Instances> res = new ArrayList<>();
 
 		int i;
 		Integer first = null;
 		int toCopy = 0;
 
-		for(String rel: set){
+		for(String rel: releases){
 			for(i=0; i<data.numInstances(); i++) {
 				if(data.instance(i).stringValue(1).equals(rel)) {
 					if(first == null) {
@@ -176,7 +240,7 @@ public class WekaManager {
 
 			train = instances.getKey();
 			test = instances.getValue();
-			
+
 			Double trainingPerc = computeTrainingPerc(train, sets);
 			Pair<Double, Double> defectivePerc = computeDefectivePerc(train, test);
 			
@@ -217,8 +281,8 @@ public class WekaManager {
 	}
 
 	private Pair<Double, Double> computeDefectivePerc(Instances train, Instances test) {
-		Double trainDef;
-		Double testDef;
+		double trainDef;
+		double testDef;
 		if(train.numInstances() == 0) {
 			trainDef = 0.0;
 		}else {
@@ -253,11 +317,7 @@ public class WekaManager {
 		csc.setCostMatrix(sensitivity);
 		
 		boolean minExpCost;
-		if(sensitivity.getElement(0, 1) == 10.0) {
-			minExpCost = false;
-		}else {
-			minExpCost = true;
-		}
+		minExpCost = sensitivity.getElement(0, 1) != 10.0;
 		csc.setMinimizeExpectedCost(minExpCost);
 		
 		return csc;

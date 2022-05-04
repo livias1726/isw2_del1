@@ -130,7 +130,7 @@ public class FileMetadata{
 
 	//---------------------------------------------DATASET--------------------------------------------------------------
 	
-	//LOC_touched: sum of added, deleted and modified over revisions per release
+	/**LOC_touched: sum of LOC added, deleted and modified over revisions per release*/
 	public int getLOCTouchedOverRevision(String release){
 		int added = getLOCAddedOverRevision(release);
 		int deleted = getLOCDeletedOverRevision(release);
@@ -139,7 +139,7 @@ public class FileMetadata{
 		return added+deleted+modified;
 	}
 
-	//NR: number of revisions given a certain release
+	/**NR: number of revisions per release*/
 	public int getNumberOfRevisionsPerRelease(String release){
 		if(revisions.containsKey(release)){
 			return revisions.get(release).size();
@@ -148,12 +148,12 @@ public class FileMetadata{
 		return 0;
 	}
 	
-	//NAuth
+	/**NAuth: number of different authors for single file*/
 	public int getNumberOfAuthors() {
 		return authors.size();
 	}
 
-	//LOC_added
+	/**LOC_added: sum of LOC added over revisions per release*/
 	public int getLOCAddedOverRevision(String release) {
 		int totAdd = 0;
 
@@ -166,7 +166,7 @@ public class FileMetadata{
 		return totAdd;
 	}
 
-	//MAX_LOC_added
+	/**MAX_LOC_added: max of LOC added over revisions per release*/
 	public int getMaxLOCAddedPerRelease(String release) {
 		int maxAdded = 0;
 
@@ -181,7 +181,7 @@ public class FileMetadata{
 		return maxAdded;
 	}
 
-	//AVG_LOC_added
+	/**AVG_LOC_added: avg of LOC added over revisions per release*/
 	public double getAvgLOCAddedPerRelease(String release) {
 		double avgAdded = 0;
 
@@ -195,7 +195,7 @@ public class FileMetadata{
 		return avgAdded;
 	}
 
-	//Churn
+	/**Churn: sum of LOC added minus LOC deleted over revisions per release*/
 	public int getChurnOverRevision(String release){
 		int added = getLOCAddedOverRevision(release);
 		int deleted = getLOCDeletedOverRevision(release);
@@ -203,7 +203,7 @@ public class FileMetadata{
 		return Math.abs(added-deleted);
 	}
 
-	//MAX_Churn
+	/**MAX_churn: max of LOC added minus LOC deleted over revisions per release*/
 	public int getMaxChurnPerRelease(String release) {
 		int maxChurn = 0;
 		int added;
@@ -228,9 +228,9 @@ public class FileMetadata{
 		return maxChurn;
 	}
 
-	//AVG_Churn
+	/**AVG_churn: avg of LOC added over  revisions per release*/
 	public double getAvgChurnPerRelease(String release) {
-		int numTotRev = getRevisionNumberForAvgChurn(release);
+		int numTotRev = getTotalRevisionsForChurn(release);
 		int churn = getChurnOverRevision(release);
 
 		if(numTotRev == 0){
@@ -240,7 +240,7 @@ public class FileMetadata{
 		return (double) churn/numTotRev;
 	}
 
-	//ChgSetSize
+	/**ChgSetSize: changing set dimension*/
 	public int getChgSetSizeOverRevisions(String release) {
 
 		int totChgSet = 0;
@@ -253,7 +253,7 @@ public class FileMetadata{
 		return totChgSet;
 	}
 
-	//MAX_ChgSet
+	/**MAX_ChgSet: maximum size of the changing set over revision per release*/
 	public int getMaxChgSetSizePerRelease(String release) {
 
 		int maxChgSet = 0;
@@ -268,7 +268,7 @@ public class FileMetadata{
 		return maxChgSet;
 	}
 
-	//AVG_ChgSet
+	/**AVG_ChgSet: average size of the changing set over revision per release*/
 	public double getAvgChgSetSizePerRelease(String release) {
 		double avgChgSet = 0;
 		int numRev;
@@ -332,7 +332,8 @@ public class FileMetadata{
 		return totMod;
 	}
 
-	private int getRevisionNumberForAvgChurn(String release) {
+	//Used to get the number of revision to compute the average churn
+	private int getTotalRevisionsForChurn(String release) {
 		//Need to count every revision in both added and deleted list + every revision in only one of them
 		List<RevCommit> revAdd = new ArrayList<>();
 		List<RevCommit> revDel = new ArrayList<>();

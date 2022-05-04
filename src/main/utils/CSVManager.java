@@ -31,10 +31,10 @@ public class CSVManager {
 	 * */
     public String getDataset(String datasetName, Map<String, List<FileMetadata>> files) throws IOException {
 
-    	String path = datasetName + ".csv";
+    	String path = "..\\Outputs\\" + datasetName + ".csv";
 
     	try(FileWriter fw = new FileWriter(path)){
-			fw.append("sep=,\n");
+			//fw.append("sep=,\n");
     		fw.append("Project,Version,Filename," +
 					  "Size,LOC_touched,NR,NFix,NAuth," +
 					  "LOC_added,MAX_LOC_added,AVG_LOC_added," +
@@ -165,5 +165,15 @@ public class CSVManager {
 				fw.append("Threshold=0.5;");
 			}
 		}
+	}
+
+	/**
+	 * Prepares the format of the CSV file to be converted to ARFF by WekaManager
+	 * */
+	public void prepareCSVForWeka(String dataset) {
+		//Remove first 3 columns: project, release, filename
+		//TODO: WARNING the release might be useful to maintain the temporal relationships between instances
+
+		//
 	}
 }

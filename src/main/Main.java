@@ -3,19 +3,23 @@ package main;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.LocalDate;
+import java.util.List;
+import java.util.Map;
 import java.util.logging.*;
 
 import javafx.util.Pair;
 import main.dataset.control.DatasetManager;
+import main.dataset.entity.FileMetadata;
 import main.training.AnalysisManager;
+import main.utils.CSVManager;
+import main.utils.LoggingUtils;
 
 /**
  * Starting class.
  * */
 public class Main {
 
-	private static Logger logger = null;
-    private static final String PROJECT = "OPENJPA"; //change the name to change the project to analyze
+	private static final String PROJECT = "BOOKKEEPER"; //change the name to change the project to analyze
 
 	/**
 	 * Main method.
@@ -37,11 +41,21 @@ public class Main {
 			prepareLogger();
 
 			//dataset construction
-			Pair<String, String[]> datasetCSV = DatasetManager.getInstance(PROJECT).getDataset();
-			logger.info("Dataset construction: SUCCESS.");
+			Map<String, List<FileMetadata>> dataset = DatasetManager.getInstance(PROJECT).getDataset();
+
+			//dataset on csv
+			String datasetName = CSVManager.getInstance().getDataset(PROJECT, dataset);
 
 			//training
-			AnalysisManager.getInstance().getAnalysis(PROJECT, datasetCSV.getKey(), datasetCSV.getValue());
+			//AnalysisManager.getInstance().getAnalysis(PROJECT, datasetName, dataset.keySet().toArray(new String[0]));
+
+			 /*
+			String filename = PROJECT+".csv";
+			String[] releases = new String[]{
+					"0.9.0", "0.9.6", "0.9.7", "1.0.0", "1.0.1", "1.0.2", "1.1.0", "1.0.3", "1.2.0", "2.0.0-M1",
+					"1.2.1", "2.0.0-M2", "2.0.0-M3", "1.2.2", "2.0.0-beta", "2.0.0-beta2", "2.0.0-beta3", "2.0.0"};
+
+			AnalysisManager.getInstance().getAnalysis(PROJECT, filename, releases);*/
 
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -57,7 +71,8 @@ public class Main {
 
 		try {
 			LogManager.getLogManager().readConfiguration(stream);
-			logger = Logger.getLogger(PROJECT);
+			Logger logger = Logger.getLogger(PROJECT);
+			LoggingUtils.getInstance(logger);
 
 		} catch (IOException e) {
 			e.printStackTrace();

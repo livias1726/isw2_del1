@@ -166,6 +166,15 @@ public class ReleaseManager {
 		return valid;
 	}
 
+	/**
+	 * Computes the AVs of the tickets fixed on release R with the proportion of the tickets
+	 * that has valid AVs from release 1 to R-1.
+	 *
+	 * @param invalid : list of tickets to compute the AVs of
+	 * @param valid : list of tickets with valid AVs
+	 *
+	 * @return : list of tickets with updated AVs
+	 * */
 	private List<Bug> computeProportion(Map<String, List<Bug>> invalid, Map<String, List<Bug>> valid) {
 		List<Bug> bugs = new ArrayList<>();
 
@@ -198,6 +207,13 @@ public class ReleaseManager {
 		return bugs;
 	}
 
+	/**
+	 * Maps the bugs on the release in which they were fixed.
+	 *
+	 * @param bugs : list of bugs
+	 *
+	 * @return : the bugs mapped on their fix release
+	 * */
 	private Map<String, List<Bug>> getBugsByRelease(List<Bug> bugs) {
 		Map<String, List<Bug>> bugsByRelease = new LinkedHashMap<>();
 
@@ -217,7 +233,11 @@ public class ReleaseManager {
 	}
 
 	/**
-	 * Compute proportion factor for given interval of releases.
+	 * Computes the proportion factor with a list of bugs.
+	 *
+	 * @param bugs : list of bugs with valid AVs
+	 *
+	 * @return : proportion factor
 	 * */
 	private double updateProportion(List<Bug> bugs) {
 		double iFix;
@@ -246,6 +266,8 @@ public class ReleaseManager {
 	 * Computes the affected versions for the bug using information about injected version and fix version.
 	 *
 	 * @param bug : instance for which the affected versions are computed
+	 *
+	 * @return : affected versions
 	 * */
 	private List<String> computeAffectedVersions(Bug bug) {
 
@@ -331,24 +353,36 @@ public class ReleaseManager {
 		return getReleaseFromIndex(iInj);
 	}
 
+	/**
+	 * Retrieves a release from its index in the releases list.
+	 *
+	 * @param i : index
+	 *
+	 * @return : release
+	 * */
 	private String getReleaseFromIndex(int i) {
 		for(String rel: releases.keySet()){
 			if(i == 1){
 				return rel;
 			}
-
 			i--;
 		}
 		return null;
 	}
 
+	/**
+	 * Retrieves the index of a release in the releases list.
+	 *
+	 * @param ver : release
+	 *
+	 * @return : index
+	 * */
 	private int getIndexFromRelease(String ver) {
 		int idx = 1;
 		for(String rel: releases.keySet()){
 			if(ver.equals(rel)){
 				return idx;
 			}
-
 			idx++;
 		}
 

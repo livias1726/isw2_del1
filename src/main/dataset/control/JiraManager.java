@@ -133,6 +133,7 @@ public class JiraManager {
 				fields = issue.getJSONObject("fields");
 
 				key = issue.get("key").toString();
+
 				fixDate = LocalDate.parse(fields.getString("resolutiondate").substring(0,10));
 				LocalDate openingDate = LocalDate.parse(fields.getString("created").substring(0,10));
 

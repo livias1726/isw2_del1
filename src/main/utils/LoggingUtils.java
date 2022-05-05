@@ -14,17 +14,18 @@ import java.util.logging.Logger;
 public class LoggingUtils {
 
     private static Logger logger;
+    public void setLogger(Logger loggerPar) {
+        logger = loggerPar;
+    }
 
     //Instantiation
     private static LoggingUtils instance = null;
 
-    private LoggingUtils(Logger loggerArg) {
-        logger = loggerArg;
-    }
+    private LoggingUtils() {/**/}
 
-    public static LoggingUtils getInstance(Logger logger) {
+    public static LoggingUtils getInstance() {
         if(instance == null) {
-            instance = new LoggingUtils(logger);
+            instance = new LoggingUtils();
         }
         return instance;
     }

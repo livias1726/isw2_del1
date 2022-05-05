@@ -7,9 +7,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.*;
 
+import javafx.util.Pair;
 import main.dataset.control.DatasetManager;
 import main.dataset.entity.FileMetadata;
-import main.training.AnalysisManager;
+import main.training.WekaManager;
 import main.utils.CSVManager;
 import main.utils.LoggingUtils;
 
@@ -19,6 +20,7 @@ import main.utils.LoggingUtils;
 public class Main {
 
 	private static final String PROJECT = "BOOKKEEPER"; //change the name to change the project to analyze
+	private static final String OUTPUT_PATH = "..\\Outputs\\";
 
 	/**
 	 * Main method.
@@ -29,7 +31,6 @@ public class Main {
 		System.setProperty("project_name", PROJECT);
 
 		try {
-			/*
 			//if project is BOOKKEEPER: Jira support ended on 2017-10-17
             if(System.getProperty("project_name").equals("BOOKKEEPER")){
                 System.setProperty("date_limit", "2017-10-17");
@@ -44,22 +45,11 @@ public class Main {
 			Map<String, List<FileMetadata>> dataset = DatasetManager.getInstance(PROJECT).getDataset();
 
 			//dataset on csv
-			String datasetName = CSVManager.getInstance().getDataset(PROJECT, dataset);
-
-			//copy dataset to convert in arff
-			CSVManager.getInstance().copyFileInCurrentDirectory(PROJECT);
+			String datasetPath = CSVManager.getInstance().getDataset(OUTPUT_PATH, PROJECT, dataset);
 
 			//training
-			AnalysisManager.getInstance().getAnalysis(PROJECT, datasetName, dataset.keySet().toArray(new String[0]));
-			*/
-
-			String filename = PROJECT+".csv";
-			String[] releases = new String[]{"4.0.0", "4.1.0", "4.2.0", "4.2.1", "4.2.2"};
-			/*String[] releases = new String[]{
-					"0.9.0", "0.9.6", "0.9.7", "1.0.0", "1.0.1", "1.0.2", "1.1.0", "1.0.3", "1.2.0", "2.0.0-M1",
-					"1.2.1", "2.0.0-M2", "2.0.0-M3", "1.2.2", "2.0.0-beta", "2.0.0-beta2", "2.0.0-beta3", "2.0.0"};*/
-
-			AnalysisManager.getInstance().getAnalysis(PROJECT, filename, releases);
+			Map<Pair<Integer, Integer>, List<Double>> performances =  WekaManager.getInstance().setWeka(datasetPath);
+			CSVManager.getInstance().getWekaResult(PROJECT, performances);
 
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -76,7 +66,8 @@ public class Main {
 		try {
 			LogManager.getLogManager().readConfiguration(stream);
 			Logger logger = Logger.getLogger(PROJECT);
-			LoggingUtils.getInstance(logger);
+
+			LoggingUtils.getInstance().setLogger(logger);
 
 		} catch (IOException e) {
 			e.printStackTrace();

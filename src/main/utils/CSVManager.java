@@ -1,9 +1,7 @@
 package main.utils;
 
-import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.text.DecimalFormat;
 import java.util.Iterator;
 import java.util.List;
@@ -17,7 +15,9 @@ public class CSVManager {
 
 	//Instantiation
 	private static CSVManager instance = null;
+
     private CSVManager() { /**/ }
+
     public static CSVManager getInstance() {
         if(instance == null) {
         	instance = new CSVManager();
@@ -31,12 +31,11 @@ public class CSVManager {
 	 * @param datasetName: name of the file
 	 * @param files: lists of FileMetadata per release
 	 * */
-    public String getDataset(String datasetName, Map<String, List<FileMetadata>> files) throws IOException {
+    public String getDataset(String outputPath, String datasetName, Map<String, List<FileMetadata>> files) throws IOException {
 
-    	String path = "..\\Outputs\\" + datasetName + ".csv";
+    	String path = outputPath + datasetName + ".csv";
 
     	try(FileWriter fw = new FileWriter(path)){
-			//fw.append("sep=,\n");
     		fw.append("Project,Version,Filename," +
 					  "Size,LOC_touched,NR,NFix,NAuth," +
 					  "LOC_added,MAX_LOC_added,AVG_LOC_added," +
@@ -167,27 +166,5 @@ public class CSVManager {
 				fw.append("Threshold=0.5;");
 			}
 		}
-	}
-
-	/**
-	 * Prepares the format of the CSV file to be converted to ARFF by WekaManager
-	 * */
-	public void prepareCSVForWeka(String dataset) {
-		//Remove first 3 columns: project, release, filename
-		//TODO: WARNING the release might be useful to maintain the temporal relationships between instances
-
-		//Use first row as names of attributes
-
-		//Set attributes types
-	}
-
-	public void copyFileInCurrentDirectory(String project) throws IOException {
-		String oldPath = "..\\Outputs\\" + project + ".csv";
-		String path =  project + ".csv";
-
-		File src = new File(oldPath);
-		File dest = new File(path);
-
-		Files.copy(src.toPath(), dest.toPath());
 	}
 }

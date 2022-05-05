@@ -8,7 +8,6 @@ import java.util.Map;
 
 import javafx.util.Pair;
 import weka.attributeSelection.ASSearch;
-import weka.core.Instance;
 import weka.core.converters.ArffLoader;
 import weka.core.converters.ArffSaver;
 import weka.filters.supervised.attribute.AttributeSelection;
@@ -105,9 +104,6 @@ public class WekaManager {
 	}
 
 	//-------------------------------------------------Getters & Setters------------------------------------------------
-
-	public Map<Pair<Integer,Integer>, List<Double>> getPerformances() {return performances;}
-	
 	public Object getConfigurations(Integer numConfig, int element) {
 		List<Integer> list = this.configurations.get(numConfig);
 		switch(element) {
@@ -126,8 +122,10 @@ public class WekaManager {
 
 	/**
 	 *
+	 *
+	 * @return :
 	 * */
-	public void setWeka(String datasetName, String[] releases) throws Exception {
+	public Map<Pair<Integer, Integer>, List<Double>> setWeka(String datasetName) throws Exception {
 
 		String arffDataset = convertCSVToArff(datasetName); //get the arff from the csv
 
@@ -144,6 +142,8 @@ public class WekaManager {
 		for(List<Integer> l: configurations.values()) {
 			walkForwardPerRelease(sets, featSelection[l.get(0)], samplings[l.get(1)], classifiers[l.get(2)], sensitivities[l.get(3)], idx++);
 		}
+
+		return performances;
 	}
 
 	/**
@@ -191,8 +191,8 @@ public class WekaManager {
 		int next;
 		while(i < tot){
 			toCopy = Math.min(tot - i, numInstancesPerFold);
-			next = i + toCopy;
-			if(next >= tot){
+			next = tot - i;
+			if(next-numInstancesPerFold == remainder){
 				toCopy += remainder;
 			}
 			res.add(new Instances(instances, i, toCopy));

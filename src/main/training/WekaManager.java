@@ -8,6 +8,7 @@ import java.util.Map;
 
 import javafx.util.Pair;
 import weka.attributeSelection.ASSearch;
+import weka.core.Instance;
 import weka.core.converters.ArffLoader;
 import weka.core.converters.ArffSaver;
 import weka.filters.supervised.attribute.AttributeSelection;
@@ -43,8 +44,14 @@ public class WekaManager {
 	//Records the performances obtained for every configuration
 	private final Map<Pair<Integer,Integer>, List<Double>> performances;
 
-	//Instantiation
-	private static WekaManager instance = null;
+	//-------------------------------------------------Instantiation-----------------------------------------------
+	private static WekaManager instance = null; //Singleton
+	public static WekaManager getInstance() {
+		if(instance == null) {
+			instance = new WekaManager();
+		}
+		return instance;
+	}
 
 	/**
 	 * Prepares the Weka analysis with every possible configuration of:
@@ -97,13 +104,6 @@ public class WekaManager {
 		sensitivities[i].setCell(1, 1, 0.0);
 	}
 
-	public static WekaManager getInstance() {
-        if(instance == null) {
-        	instance = new WekaManager();
-        }
-        return instance;
-    }
-
 	//-------------------------------------------------Getters & Setters------------------------------------------------
 
 	public Map<Pair<Integer,Integer>, List<Double>> getPerformances() {return performances;}
@@ -138,7 +138,7 @@ public class WekaManager {
 		Instances data = loader.getDataSet();
 		data.setClassIndex(data.numAttributes() - 1); //set class index
 		
-		List<Instances> sets = separateFolds(data, releases); //generate folds per release
+		List<Instances> sets = separateFolds(data); //generate folds per release
 		
 		int idx = 0;
 		for(List<Integer> l: configurations.values()) {
@@ -177,30 +177,26 @@ public class WekaManager {
 	/**
 	 * Prepares folds to execute a Walk-forward training approach.
 	 * Separates the dataset per release.
-	 * TODO: check if an approach based on the number of files per fold is preferable
 	 * */
-	public List<Instances> separateFolds(Instances data, String[] releases) {
+	public List<Instances> separateFolds(Instances instances) {
 		List<Instances> res = new ArrayList<>();
 
-		int i;
-		Integer first = null;
-		int toCopy = 0;
+		int numFolds = 10;
+		int tot = instances.numInstances();
+		int numInstancesPerFold = tot/numFolds;
+		int remainder = tot%numFolds;
 
-		for(String rel: releases){
-			for(i=0; i<data.numInstances(); i++) {
-				if(data.instance(i).stringValue(1).equals(rel)) {
-					if(first == null) {
-						first = i;
-					}
-					toCopy++;
-				}
+		int i = 0;
+		int toCopy;
+		int next;
+		while(i < tot){
+			toCopy = Math.min(tot - i, numInstancesPerFold);
+			next = i + toCopy;
+			if(next >= tot){
+				toCopy += remainder;
 			}
-			
-			if(first != null) {
-				res.add(new Instances(data,first,toCopy));
-				toCopy = 0;
-				first = null;
-			}
+			res.add(new Instances(instances, i, toCopy));
+			i += toCopy;
 		}
 		
 		return res;

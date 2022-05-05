@@ -27,7 +27,7 @@ public class FileMetadata{
 	private List<String> buggynessSet = new ArrayList<>(); //Releases in which the file was buggy
 
 	//--------------------------------------------------------Utils-----------------------------------------------------
-	private String filename; 						//Used as ID
+	private String filename; 						//Used to match committed files and in dataset
 	private Pair<RevCommit, LocalDate> creation; 	//Pair of creation commit and date
 	private boolean isDeleted; 						//Flag to signal a deletion (used when the same file is created again)
 	private LocalDate lastModified; 				//Last modification date

@@ -9,7 +9,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
 
 public class LoggingUtils {
 
@@ -76,5 +76,10 @@ public class LoggingUtils {
 
         String log = stringBuilder.toString();
         logger.info(log);
+    }
+
+    public static void logException(Exception e) {
+        String log = Arrays.toString(e.getStackTrace());
+        logger.error(log);
     }
 }

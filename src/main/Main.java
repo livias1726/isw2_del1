@@ -5,7 +5,7 @@ import java.io.InputStream;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.*;
+import java.util.logging.LogManager;
 
 import javafx.util.Pair;
 import main.dataset.control.DatasetManager;
@@ -13,6 +13,8 @@ import main.dataset.entity.FileMetadata;
 import main.training.WekaManager;
 import main.utils.CSVManager;
 import main.utils.LoggingUtils;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 
 /**
  * Starting class.
@@ -52,7 +54,7 @@ public class Main {
 			CSVManager.getInstance().getWekaResult(PROJECT, performances);
 
 		} catch (Exception e) {
-			e.printStackTrace();
+			LoggingUtils.logException(e);
 			System.exit(-1);
 		}
 	}
@@ -60,18 +62,12 @@ public class Main {
 	/**
 	 * Configures the logger for the program using the properties file in the resources' directory.
 	 * */
-	private static void prepareLogger() {
+	private static void prepareLogger() throws IOException {
 		InputStream stream = Main.class.getClassLoader().getResourceAsStream("logging.properties");
 
-		try {
-			LogManager.getLogManager().readConfiguration(stream);
-			Logger logger = Logger.getLogger(PROJECT);
+		LogManager.getLogManager().readConfiguration(stream);
+		Logger logger = LoggerFactory.getLogger(PROJECT);
 
-			LoggingUtils.setLogger(logger);
-
-		} catch (IOException e) {
-			e.printStackTrace();
-			System.exit(-1);
-		}
+		LoggingUtils.setLogger(logger);
 	}
 }

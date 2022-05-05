@@ -18,6 +18,8 @@ public class LoggingUtils {
         logger = loggerPar;
     }
 
+    private LoggingUtils(){/**/}
+
     public static void logList(String msg, Set<String> list) {
         String log = msg + Arrays.toString(list.toArray());
         logger.info(log);

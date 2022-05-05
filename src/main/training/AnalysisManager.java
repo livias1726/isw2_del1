@@ -17,7 +17,6 @@ public class AnalysisManager {
     }
     
     public void getAnalysis(String project, String dataset, String[] releases) throws Exception {
-
         CSVManager csv = CSVManager.getInstance();
         csv.prepareCSVForWeka(dataset);
 

@@ -1,7 +1,9 @@
 package main.utils;
 
+import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.text.DecimalFormat;
 import java.util.Iterator;
 import java.util.List;
@@ -174,6 +176,18 @@ public class CSVManager {
 		//Remove first 3 columns: project, release, filename
 		//TODO: WARNING the release might be useful to maintain the temporal relationships between instances
 
-		//
+		//Use first row as names of attributes
+
+		//Set attributes types
+	}
+
+	public void copyFileInCurrentDirectory(String project) throws IOException {
+		String oldPath = "..\\Outputs\\" + project + ".csv";
+		String path =  project + ".csv";
+
+		File src = new File(oldPath);
+		File dest = new File(path);
+
+		Files.copy(src.toPath(), dest.toPath());
 	}
 }

@@ -158,18 +158,16 @@ public class WekaManager {
 		CSVLoader loader = new CSVLoader();
 		loader.setSource(new File(csvFile));
 
-		//CSV uses no header
-		String[] options = new String[1];
-		options[0] = "-H";
-		loader.setOptions(options);
-
 		//Save ARFF
 		ArffSaver saver = new ArffSaver();
 		saver.setInstances(loader.getDataSet());
 
+		saver.getInstances().deleteAttributeAt(0); //project
+		saver.getInstances().deleteAttributeAt(0); //version
+		saver.getInstances().deleteAttributeAt(0); //filename
+
 		csvFile = csvFile.replace(".csv", ".arff");
 
-		// saver.setDestination(new File(filename));
 		saver.setFile(new File(csvFile));
 		saver.writeBatch();
 

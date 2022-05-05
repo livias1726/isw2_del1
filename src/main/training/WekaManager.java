@@ -1,6 +1,7 @@
 package main.training;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -153,7 +154,7 @@ public class WekaManager {
 	 *
 	 * @return : new path
 	 * */
-	private String convertCSVToArff(String csvFile) throws Exception {
+	private String convertCSVToArff(String csvFile) throws IOException {
 		//Load CSV
 		CSVLoader loader = new CSVLoader();
 		loader.setSource(new File(csvFile));

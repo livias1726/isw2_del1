@@ -19,7 +19,7 @@ import main.utils.LoggingUtils;
  * */
 public class Main {
 
-	private static final String PROJECT = "BOOKKEEPER"; //change the name to change the project to analyze
+	private static final String PROJECT = "OPENJPA"; //change the name to change the project to analyze
 	private static final String OUTPUT_PATH = "..\\Outputs\\";
 
 	/**
@@ -67,7 +67,7 @@ public class Main {
 			LogManager.getLogManager().readConfiguration(stream);
 			Logger logger = Logger.getLogger(PROJECT);
 
-			LoggingUtils.getInstance().setLogger(logger);
+			LoggingUtils.setLogger(logger);
 
 		} catch (IOException e) {
 			e.printStackTrace();

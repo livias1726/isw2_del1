@@ -4,12 +4,14 @@ import main.dataset.entity.Bug;
 import main.dataset.entity.FileMetadata;
 import org.eclipse.jgit.revwalk.RevCommit;
 
+import java.text.DecimalFormat;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.slf4j.Logger;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class LoggingUtils {
 
@@ -31,7 +33,9 @@ public class LoggingUtils {
     }
 
     public static void logDouble(String msg, double arg) {
-        String log = msg + arg;
+        DecimalFormat df = new DecimalFormat("#.00");
+
+        String log = msg + df.format(arg);
         logger.info(log);
     }
 
@@ -78,8 +82,11 @@ public class LoggingUtils {
         logger.info(log);
     }
 
+    /*
     public static void logException(Exception e) {
         String log = Arrays.toString(e.getStackTrace());
-        logger.error(log);
+        logger.log(Level.SEVERE, log);
     }
+
+     */
 }

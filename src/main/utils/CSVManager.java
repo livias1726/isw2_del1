@@ -2,14 +2,11 @@ package main.utils;
 
 import java.io.FileWriter;
 import java.io.IOException;
-import java.text.DecimalFormat;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import javafx.util.Pair;
-import main.training.WekaManager;
 import main.dataset.entity.FileMetadata;
+import main.training.entity.Configuration;
 
 public class CSVManager {
 
@@ -28,6 +25,7 @@ public class CSVManager {
 	/**
 	 * Creates the csv file used as dataset.
 	 *
+	 * @param outputPath : directory of output files
 	 * @param datasetName: name of the file
 	 * @param files: lists of FileMetadata per release
 	 * */
@@ -91,79 +89,86 @@ public class CSVManager {
     	return path;
     }
 
-	public void getWekaResult(String project, Map<Pair<Integer, Integer>, List<Double>> map) throws IOException {
+	/**
+	 * Creates a csv file with Weka training results.
+	 *
+	 * @param outputPath : directory of output files
+	 * @param project : project name
+	 * @param configurations : values related to every computed
+	 * */
+	public void getWekaResult(String outputPath, String project, List<Configuration> configurations) throws IOException {
     	
-    	String path = project + "_weka.csv";
+    	String path = outputPath + project + "_Weka.csv";
     	try(FileWriter fw = new FileWriter(path)){
-    		fw.append("Dataset;"
-    				+ "#TrainingRelease;%Training;%DefectiveTraining;%DefectiveTesting;"
-    				+ "Classifier;Balancing;FeatureSelection;Sensitivity;"
-    				+ "TP;FP;TN;FN;Precision;Recall;AUC;Kappa");
+    		fw.append("Dataset,"
+					+ /*"#Training Releases,*/"%Training,%DefectiveTraining,%DefectiveTesting,"
+    				+ "Classifier,Balancing,FeatureSelection,Sensitivity,"
+    				+ "TP,FP,TN,FN,Precision,Recall,AUC,Kappa");
     		fw.append("\n");
-    		
-    		DecimalFormat df = new DecimalFormat("#.00");
-    		
-    		Iterator<Pair<Integer, Integer>> iter = map.keySet().iterator();
-    		Pair<Integer, Integer> idx;
-    		List<Double> list;
-    		
-    		int i;
-    		while(iter.hasNext()) {
-    			idx = iter.next();
-    			list = map.get(idx);
-    			
-    			//data set
-    			fw.append(project).append(".csv;");
-    			
-    			//training + testing
-    			fw.append(String.valueOf(idx.getValue())).append(";");
-    			for(i=0; i<3; i++) {
-    				fw.append(df.format(list.get(i))).append(";");
-    			}
-        		
-        		//configuration
-        		writeConfigSettings(fw, idx);
-        		
-        		//metrics
-        		for(i=3; i<list.size(); i++) {
-        			if(Double.isNaN(list.get(i))) {
-        				fw.append(String.valueOf(list.get(i))).append(";");
-        			}else {
-        				fw.append(df.format(list.get(i))).append(";");
-        			}
-        		}
-				
-        		fw.append("\n");
-    		}
+
+			for(Configuration config: configurations){
+
+				fw.append(project).append(",");	//Dataset
+				//fw.append(String.valueOf(idx.getValue())).append(",");	//#Training Releases
+
+				fw.append(String.valueOf(config.getTrainingPercentage())).append(","); 			//%Training
+				fw.append(String.valueOf(config.getDefectiveTrainingPercentage())).append(",");	// %DefectiveTraining
+				fw.append(String.valueOf(config.getDefectiveTestPercentage())).append(",");		//%DefectiveTesting
+
+				//ML model settings
+				appendModelSettings(fw, config);
+
+				//Performances
+				fw.append(String.valueOf(config.getPerformances().get("TP"))).append(",");			//TP
+				fw.append(String.valueOf(config.getPerformances().get("FP"))).append(",");			//FP
+				fw.append(String.valueOf(config.getPerformances().get("TN"))).append(",");			//TN
+				fw.append(String.valueOf(config.getPerformances().get("FN"))).append(",");			//FN
+				fw.append(String.valueOf(config.getPerformances().get("Precision"))).append(",");	//Precision
+				fw.append(String.valueOf(config.getPerformances().get("Recall"))).append(",");		//Recall
+				fw.append(String.valueOf(config.getPerformances().get("AUC"))).append(",");			//AUC
+				fw.append(String.valueOf(config.getPerformances().get("Kappa"))).append(",");		//Kappa
+
+				fw.append("\n");
+			}
     	}
 
 	}
 
-	private void writeConfigSettings(FileWriter fw, Pair<Integer, Integer> idx) throws IOException {
-		String className = WekaManager.getInstance().getConfigurations(idx.getKey(), 2).toString();
-		fw.append(className.substring(0, className.indexOf("\n"))).append(";");
-		
-		if(WekaManager.getInstance().getConfigurations(idx.getKey(),1) == null) {
-			fw.append("/;");
+	/**
+	 * Writes in the output file the configuration related to the performances.
+	 * */
+	private void appendModelSettings(FileWriter fw, Configuration config) throws IOException {
+		String classifier = config.getClassifier().toString();
+		int newLine = classifier.indexOf("\n");
+		fw.append(classifier.substring(0, newLine)).append(",");//Classifier
+
+		//Balancing
+		if(config.getSampling() == null) {
+			fw.append("/,");
 		}else {
-			fw.append(WekaManager.getInstance().getConfigurations(idx.getKey(), 1).toString().substring(33)).append(";");
+			fw.append(config.getSampling().toString().substring(33)).append(",");
 		}
-		
-		if(WekaManager.getInstance().getConfigurations(idx.getKey(),0) == null) {
-			fw.append("/;");
+
+		//FeatureSelection
+		if(config.getFeatSelection() == null) {
+			fw.append("/,");
 		}else {
-			String featSelName = WekaManager.getInstance().getConfigurations(idx.getKey(), 0).toString();
-    		fw.append(featSelName.substring(0, featSelName.indexOf("."))).append(";");
+			String featSelName = config.getFeatSelection().toString();
+			int point = featSelName.indexOf(".");
+
+			fw.append(featSelName.substring(0, point)).append(",");
 		}
-		
-		if(WekaManager.getInstance().getConfigurations(idx.getKey(),3) == null) {
-			fw.append("/;");
+
+		//Sensitivity
+		if(config.getSensitivity() == null) {
+			fw.append("/,");
 		}else {
-			String matrix = WekaManager.getInstance().getConfigurations(idx.getKey(),3).toString();
+			String matrix = config.getSensitivity().toString();
+
 			if(matrix.contains("10")) {
-				fw.append("Learning;");
-			}else {
-				fw.append("Threshold=0.5;");
+				fw.append("Learning,");
+			}else{
+				fw.append("Threshold=0.5,");
 			}
 		}
 	}

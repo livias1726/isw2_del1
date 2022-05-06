@@ -3,18 +3,20 @@ package main;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.LogManager;
 
-import javafx.util.Pair;
 import main.dataset.control.DatasetManager;
 import main.dataset.entity.FileMetadata;
-import main.training.WekaManager;
+import main.training.control.WekaManager;
+import main.training.entity.Configuration;
 import main.utils.CSVManager;
 import main.utils.LoggingUtils;
-import org.slf4j.LoggerFactory;
-import org.slf4j.Logger;
+
+import java.util.logging.*;
 
 /**
  * Starting class.
@@ -43,20 +45,64 @@ public class Main {
 			//logger configuration
 			prepareLogger();
 
+			//-----------------------------------------MILESTONE 1------------------------------------------------------
 			//dataset construction
 			Map<String, List<FileMetadata>> dataset = DatasetManager.getInstance(PROJECT).getDataset();
 
 			//dataset on csv
 			String datasetPath = CSVManager.getInstance().getDataset(OUTPUT_PATH, PROJECT, dataset);
 
+			//----------------------------------------MILESTONE 2-------------------------------------------------------
+
+			//pre-configuration
+			Map<String, Integer> instancesPerRelease = getNumberOfFilesPerRelease(dataset);
+
+			/*
+			Map<String, Integer> instancesPerRelease = new LinkedHashMap<>();
+			instancesPerRelease.put("0.9.0", 1032);
+			instancesPerRelease.put("0.9.6", 204);
+			instancesPerRelease.put("0.9.7", 153);
+			instancesPerRelease.put("1.0.0", 127);
+			instancesPerRelease.put("1.0.1", 794);
+			instancesPerRelease.put("1.0.2", 61);
+			instancesPerRelease.put("1.1.0", 68);
+			instancesPerRelease.put("1.0.3", 95);
+			instancesPerRelease.put("1.2.0", 306);
+			instancesPerRelease.put("2.0.0-M1", 251);
+			instancesPerRelease.put("1.2.1", 294);
+			instancesPerRelease.put("2.0.0-M2", 474);
+			instancesPerRelease.put("2.0.0-M3", 203);
+			instancesPerRelease.put("1.2.2", 46);
+			instancesPerRelease.put("2.0.0-beta", 36);
+			instancesPerRelease.put("2.0.0-beta2", 77);
+			instancesPerRelease.put("2.0.0-beta3", 13);
+			instancesPerRelease.put("2.0.0", 263);
+
+			String datasetPath = OUTPUT_PATH + PROJECT + ".csv";
+			*/
+
 			//training
-			Map<Pair<Integer, Integer>, List<Double>> performances =  WekaManager.getInstance().setWeka(datasetPath);
-			CSVManager.getInstance().getWekaResult(PROJECT, performances);
+			List<Configuration> wekaOutput =
+					WekaManager.getInstance().setWeka(datasetPath, new ArrayList<>(instancesPerRelease.values()));
+
+			//output
+			CSVManager.getInstance().getWekaResult(OUTPUT_PATH, PROJECT, wekaOutput);
 
 		} catch (Exception e) {
-			LoggingUtils.logException(e);
+			//LoggingUtils.logException(e);
+			e.printStackTrace();
 			System.exit(-1);
 		}
+	}
+
+	private static Map<String, Integer> getNumberOfFilesPerRelease(Map<String, List<FileMetadata>> dataset) {
+		Map<String, Integer> res = new LinkedHashMap<>();
+
+		for(Map.Entry<String, List<FileMetadata>> entry: dataset.entrySet()){
+			res.put(entry.getKey(), entry.getValue().size());
+		}
+
+		return res;
 	}
 
 	/**
@@ -66,7 +112,7 @@ public class Main {
 		InputStream stream = Main.class.getClassLoader().getResourceAsStream("logging.properties");
 
 		LogManager.getLogManager().readConfiguration(stream);
-		Logger logger = LoggerFactory.getLogger(PROJECT);
+		Logger logger = Logger.getLogger(PROJECT);
 
 		LoggingUtils.setLogger(logger);
 	}

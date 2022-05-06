@@ -82,11 +82,8 @@ public class LoggingUtils {
         logger.info(log);
     }
 
-    /*
     public static void logException(Exception e) {
         String log = Arrays.toString(e.getStackTrace());
         logger.log(Level.SEVERE, log);
     }
-
-     */
 }

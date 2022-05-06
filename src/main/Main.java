@@ -57,30 +57,6 @@ public class Main {
 			//pre-configuration
 			Map<String, Integer> instancesPerRelease = getNumberOfFilesPerRelease(dataset);
 
-			/*
-			Map<String, Integer> instancesPerRelease = new LinkedHashMap<>();
-			instancesPerRelease.put("0.9.0", 1032);
-			instancesPerRelease.put("0.9.6", 204);
-			instancesPerRelease.put("0.9.7", 153);
-			instancesPerRelease.put("1.0.0", 127);
-			instancesPerRelease.put("1.0.1", 794);
-			instancesPerRelease.put("1.0.2", 61);
-			instancesPerRelease.put("1.1.0", 68);
-			instancesPerRelease.put("1.0.3", 95);
-			instancesPerRelease.put("1.2.0", 306);
-			instancesPerRelease.put("2.0.0-M1", 251);
-			instancesPerRelease.put("1.2.1", 294);
-			instancesPerRelease.put("2.0.0-M2", 474);
-			instancesPerRelease.put("2.0.0-M3", 203);
-			instancesPerRelease.put("1.2.2", 46);
-			instancesPerRelease.put("2.0.0-beta", 36);
-			instancesPerRelease.put("2.0.0-beta2", 77);
-			instancesPerRelease.put("2.0.0-beta3", 13);
-			instancesPerRelease.put("2.0.0", 263);
-
-			String datasetPath = OUTPUT_PATH + PROJECT + ".csv";
-			*/
-
 			//training
 			List<Configuration> wekaOutput =
 					WekaManager.getInstance().setWeka(datasetPath, new ArrayList<>(instancesPerRelease.values()));
@@ -89,8 +65,7 @@ public class Main {
 			CSVManager.getInstance().getWekaResult(OUTPUT_PATH, PROJECT, wekaOutput);
 
 		} catch (Exception e) {
-			//LoggingUtils.logException(e);
-			e.printStackTrace();
+			LoggingUtils.logException(e);
 			System.exit(-1);
 		}
 	}

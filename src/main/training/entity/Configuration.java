@@ -19,6 +19,8 @@ public class Configuration {
     private double defectiveTrainingPercentage;
     private double defectiveTestPercentage;
 
+    private int numTrainingReleases;
+
     private Map<String, Double> performances;
 
     public Configuration(Classifier classifier, ASSearch featSelection, Filter sampling, CostMatrix sensitivity){
@@ -92,10 +94,15 @@ public class Configuration {
         this.defectiveTestPercentage = defectiveTestPercentage;
     }
 
-
     public void setPerformances(Map<String, Double> performances) {
         this.performances = performances;
     }
 
+    public int getNumTrainingReleases() {
+        return numTrainingReleases;
+    }
 
+    public void setNumTrainingReleases(int numTrainingReleases) {
+        this.numTrainingReleases = numTrainingReleases;
+    }
 }

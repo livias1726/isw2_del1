@@ -101,7 +101,7 @@ public class CSVManager {
     	String path = outputPath + project + "_Weka.csv";
     	try(FileWriter fw = new FileWriter(path)){
     		fw.append("Dataset,"
-					+ /*"#Training Releases,*/"%Training,%DefectiveTraining,%DefectiveTesting,"
+					+ "#Training Releases,%Training,%DefectiveTraining,%DefectiveTesting,"
     				+ "Classifier,Balancing,FeatureSelection,Sensitivity,"
     				+ "TP,FP,TN,FN,Precision,Recall,AUC,Kappa");
     		fw.append("\n");
@@ -109,7 +109,7 @@ public class CSVManager {
 			for(Configuration config: configurations){
 
 				fw.append(project).append(",");	//Dataset
-				//fw.append(String.valueOf(idx.getValue())).append(",");	//#Training Releases
+				fw.append(String.valueOf(config.getNumTrainingReleases())).append(",");	//#Training Releases
 
 				fw.append(String.valueOf(config.getTrainingPercentage())).append(","); 			//%Training
 				fw.append(String.valueOf(config.getDefectiveTrainingPercentage())).append(",");	// %DefectiveTraining

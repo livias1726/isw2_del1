@@ -214,6 +214,7 @@ public class WekaManager {
 			}
 
 			Configuration newConfig = setLocalConfiguration(sets, classifier, filter, sampling, sensitivity); //new configuration
+			newConfig.setNumTrainingReleases(i);
 
 			Map<String,Double> performance = computeEvaluation(classifier, sensitivity); //evaluation
 

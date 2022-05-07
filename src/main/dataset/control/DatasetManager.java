@@ -142,8 +142,8 @@ public class DatasetManager {
 	 * @param releases : list of available releases used to retrieve keys of 'files'
 	 * */
 	private void removeSecondHalfOfReleases(Map<String, List<FileMetadata>> files, String[] releases) {
-		int tot = releases.length;
-		int half = Math.floorDiv(tot,2);
+		double tot = releases.length;
+		int half = (int) Math.ceil(tot/2);
 
 		for(int i=half; i<tot; i++){
 			files.remove(releases[i]);

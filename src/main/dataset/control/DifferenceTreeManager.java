@@ -18,8 +18,6 @@ import org.eclipse.jgit.patch.FileHeader;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.util.io.DisabledOutputStream;
 
-import javafx.util.Pair;
-
 /**
  * Controller class.
  *
@@ -61,30 +59,76 @@ public class DifferenceTreeManager {
 	 *
 	 * @return : list of files per release
 	 */
-	public Map<String, List<FileMetadata>> analyzeFilesEvolution(Map<String, Map<RevCommit, LocalDate>> commits)
-			throws GitAPIException, IOException {
+	public Map<String, List<FileMetadata>> analyzeFilesEvolution(Map<String, Map<RevCommit, LocalDate>> commits) throws GitAPIException, IOException {
 
-		RevCommit cmId1 = null;
+		RevCommit prevCommit = null;
+		String prevRelease = null;
+		String currRelease;
+
 		for (Map.Entry<String, Map<RevCommit, LocalDate>> currEntry: commits.entrySet()) { //Scan every release
-			for(RevCommit cmId2: currEntry.getValue().keySet()){ //Scan every commit in the release
+			currRelease = currEntry.getKey();
 
-				computeChanges(currEntry.getKey(), cmId1, cmId2); //Compute changes between a pair of commits
+			if(prevRelease != null){
+				populateNewRelease(prevRelease, currRelease); 	/*save every file not deleted from the previous release
+																in the new one*/
+			}
+
+			for(RevCommit currCommit: currEntry.getValue().keySet()){ //Scan every commit in the release
+
+				computeChanges(currEntry.getKey(), prevCommit, currCommit); //Compute changes between a pair of commits
 
 				//Manage changing set
 				for(FileMetadata f: chgSet) {
-					f.addChgSetCommit(currEntry.getKey(), cmId2, chgSet.size());
+					f.addChgSetCommit(currEntry.getKey(), currCommit, chgSet.size());
 				}
 				updateChgSet(null); //Re-initialize changing set
 
-				cmId1 = cmId2; //Move forward
+				prevCommit = currCommit; //Move forward
 			}
 
-			if(cmId1 != null){
-				updateFilesAge(currEntry.getKey(), cmId1);
+			removeDeletedFiles(currRelease);
+
+			if(prevCommit != null){
+				updateFilesAge(currEntry.getKey(), prevCommit);
 			}
+
+			prevRelease = currRelease;
 		}
 
 		return getFiles();
+	}
+
+	/**
+	 * Adds to the map of files, for the new release, every non-deleted file that was present in the previous release.
+	 *
+	 * @param prevRelease : previous release
+	 * @param currRelease : current release
+	 * */
+	private void populateNewRelease(String prevRelease, String currRelease) {
+		List<FileMetadata> toAdd = new ArrayList<>();
+
+		for(FileMetadata prevFile: files.get(prevRelease)){
+			toAdd.add(new FileMetadata(prevFile));
+		}
+
+		files.put(currRelease, toAdd);
+	}
+
+	/**
+	 * Removes every file that has been deleted during the release from the files associated with the release.
+	 *
+	 * @param currRelease : current release
+	 * */
+	private void removeDeletedFiles(String currRelease) {
+		List<FileMetadata> toRemove = new ArrayList<>();
+
+		for(FileMetadata file: files.get(currRelease)){
+			if(file.isDeleted()){
+				toRemove.add(file);
+			}
+		}
+
+		files.get(currRelease).removeAll(toRemove);
 	}
 
 	/**
@@ -109,13 +153,13 @@ public class DifferenceTreeManager {
 					manageModified(release, to, diffFormatter, diff);
 					break;
 				case DELETE:
-					manageDeletion(to, diff.getOldPath());
+					manageDeletion(release, diff.getOldPath());
 					break;
 				case RENAME:
-					manageRenaming(release, diff);
+					manageRenaming(release, diff.getOldPath(), diff.getNewPath());
 					break;
 				case COPY:
-					manageCopying(release, diff);
+					manageCopying(release, diff.getOldPath(), diff.getNewPath());
 					break;
 				default:
 					break;
@@ -136,16 +180,18 @@ public class DifferenceTreeManager {
 		LocalDate additionDate = creator.getWhen().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
 
 		//Check if the file already exists
-		Pair<String, Integer> file = getLatestKnownFileVersion(diff.getNewPath());
+		FileMetadata file = getFile(release, diff.getNewPath());
 
 		//If the file does not exist or was deleted in the past, create a new FileMetadata instance
-		if(file.getKey() == null || files.get(file.getKey()).get(file.getValue()).isDeleted()) {
+		if(file == null) {
 			FileMetadata f = new FileMetadata(diff.getNewPath(), release, to, additionDate, creator.getName());
 
 			//Manage the LOC modifications
 			computeLOCChanges(f, df, diff, release, to);
+
 			//Add the file to a global list related to the release
 			updateListOfFiles(release, f);
+
 			//Manages the chgSet of the file to add at the end of the commit analysis
 			updateChgSet(f);
 		}
@@ -162,17 +208,9 @@ public class DifferenceTreeManager {
 	 */
 	private void manageModified(String release, RevCommit to, DiffFormatter df, DiffEntry diff) throws IOException {
 		//Check if the file exists
-		Pair<String,Integer> cm = getLatestKnownFileVersion(diff.getNewPath());
-		if(cm.getKey() == null) { //the file was not "seen" as added before
+		FileMetadata file = getFile(release, diff.getNewPath());
+		if(file == null) { //the file was not "seen" as added before
 			return;
-		}
-
-		FileMetadata f = files.get(cm.getKey()).get(cm.getValue()); //get file from list
-
-		//Check if the file was found in the release that is being analyzed
-		boolean isIn = cm.getKey().equals(release);
-		if(isIn) {
-			f = new FileMetadata(f); //create a new instance from the old one
 		}
 
 		//Check for buggyness
@@ -181,23 +219,18 @@ public class DifferenceTreeManager {
 		//Modify the file if the last modification was before the date of the current commit
 		PersonIdent author = to.getAuthorIdent();
 		LocalDate modDate = author.getWhen().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
-		LocalDate lastMod = f.getLastModified();
+		LocalDate lastMod = file.getLastModified();
 		if(lastMod == null || lastMod.isBefore(modDate)) {
-			f.addModification(release, to, modDate, author.getName(), affectedVersions); //manage the new modification
+			file.addModification(release, to, modDate, author.getName(), affectedVersions); //manage the new modification
 		}else {
 			return; //invalid modification
 		}
 
 		//Manage the LOC of the file
-		computeLOCChanges(f, df, diff, release, to);
-
-		//Add the file to a global list related to the release
-		if(isIn) {
-			updateListOfFiles(release, f); //overwrites the file if already in for the same release
-		}
+		computeLOCChanges(file, df, diff, release, to);
 
 		//Manage the changing set of the file to add at the end of the commit analysis
-		updateChgSet(f);
+		updateChgSet(file);
 	}
 
 	/**
@@ -205,21 +238,17 @@ public class DifferenceTreeManager {
 	 * Needs to account for the presence of bug fix.
 	 * Revision addition is not considered.
 	 *
-	 * @param to : commit that deletes the file
+	 * @param release : current release
 	 * @param oldPath : name of the deleted file
 	 */
-	public void manageDeletion(RevCommit to, String oldPath) {
+	public void manageDeletion(String release, String oldPath) {
 		//Retrieve existing file -> return null if file does not exist, else f
-		Pair<String,Integer> cm = getLatestKnownFileVersion(oldPath);
-		if(cm.getKey() == null) {
+		FileMetadata file = getFile(release, oldPath);
+		if(file == null) {
 			return;
 		}
-		FileMetadata f = files.get(cm.getKey()).get(cm.getValue());
 
-		LocalDate delDate = to.getAuthorIdent().getWhen().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
-		f.setAge(ChronoUnit.WEEKS.between(f.getCreation().getValue(), delDate)); //Sets the age at the time of deletion
-
-		f.setDeleted(true);
+		file.setDeleted(true);
 	}
 
 	/**
@@ -227,44 +256,31 @@ public class DifferenceTreeManager {
 	 * Revision addition is not considered.
 	 *
 	 * @param release: name of the release in which the addition is done
-	 * @param diff: instance of the DiffEntry
 	 */
-	private void manageRenaming(String release, DiffEntry diff){
-		Pair<String,Integer> cm = getLatestKnownFileVersion(diff.getOldPath());
-		if(cm.getKey() == null) {
+	private void manageRenaming(String release, String oldName, String newName){
+		FileMetadata file = getFile(release, oldName);
+		if(file == null) {
 			return;
 		}
 
-		FileMetadata f = files.get(cm.getKey()).get(cm.getValue());
-		
-		if(!cm.getKey().equals(release)) {	/*if the renaming takes place in another release than the latest one the
-											file was in*/
-			//add the new file in the new release
-			FileMetadata newF = new FileMetadata(f);
-			newF.setFilename(diff.getNewPath());
-			updateListOfFiles(release, newF);
-
-		}else {
-			f.setFilename(diff.getNewPath()); //update the file in the release
-		}
-
-		updateChgSet(f);
+		file.setFilename(newName); //update the file in the release
+		updateChgSet(file);
 	}
 
 	/**
 	 * Triggered by a copy of a .java file in the repository.
 	 *
 	 * @param release: name of the release in which the addition is done
-	 * @param diff: instance of the DiffEntry
 	 */
-	private void manageCopying(String release, DiffEntry diff) {
-		Pair<String,Integer> cm = getLatestKnownFileVersion(diff.getOldPath());
-		if(cm.getKey() == null) {
+	private void manageCopying(String release, String oldName, String newName) {
+		FileMetadata file = getFile(release, oldName);
+		if(file == null) {
 			return;
 		}
-		FileMetadata f = new FileMetadata(files.get(cm.getKey()).get(cm.getValue()));
 
-		f.setFilename(diff.getNewPath());
+		FileMetadata f = new FileMetadata(file);
+
+		f.setFilename(newName);
 		updateListOfFiles(release, f);
 		updateChgSet(f);
 	}
@@ -283,30 +299,26 @@ public class DifferenceTreeManager {
 	}
 
 	/**
-	 * Scans the map of files (release, list of files) to retrieve
-	 * the latest release the file was in and its index in the list
+	 * Scans the files in the project at the time of the commit.
 	 *
+	 * @param currentRelease : the release under analysis
 	 * @param filename: considered the ID of the file within the project
 	 *
-	 * @return : pair (latest release, index)
+	 * @return : FileMetadata instance
 	 * */
-	private Pair<String, Integer> getLatestKnownFileVersion(String filename) {
-		Integer idx = null;
-		String rel = null;
+	private FileMetadata getFile(String currentRelease, String filename) {
+		FileMetadata fileToReturn = null;
 
-		int i = 0; //Index
-		for(Map.Entry<String, List<FileMetadata>> currEntry: files.entrySet()){ //Scan the releases
-			for(FileMetadata file: currEntry.getValue()) { //Scan the files in the release
+		if(files.containsKey(currentRelease)){
+			for(FileMetadata file: files.get(currentRelease)) { //Scan the files in the release
 				if(filename.equals(file.getFilename())) {
-					rel = currEntry.getKey();
-					idx = i;
+					fileToReturn = file;
+					break;
 				}
-				i++;
 			}
-			i = 0;
 		}
 
-		return new Pair<>(rel, idx);
+		return fileToReturn;
 	}
 
 	/**
@@ -318,14 +330,6 @@ public class DifferenceTreeManager {
 	private void updateListOfFiles(String release, FileMetadata file) {
 		if(!files.containsKey(release)) { //New release in the list: initialize
 			files.put(release, new ArrayList<>());
-
-		}else{
-			for(FileMetadata f: files.get(release)) { //Scan files in the release
-				if(f.getFilename().equals(file.getFilename())) { //File already in the release
-					files.get(release).remove(f); //Remove file to add the updated instance
-					break;
-				}
-			}
 		}
 		
 		files.get(release).add(file); //Add the new file instance
@@ -393,23 +397,11 @@ public class DifferenceTreeManager {
 	 * @param release : given release
 	 * @param lastCommit : last commit in the release
 	 * */
-	private void updateFilesAge(String release, RevCommit lastCommit) throws GitAPIException, IOException {
-		if(!files.containsKey(release)){
-			return;
-		}
-
+	private void updateFilesAge(String release, RevCommit lastCommit) {
 		LocalDate lastDate = lastCommit.getAuthorIdent().getWhen().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
-
-		GitManager git = GitManager.getInstance(project); //Uses Git API to compute the walk tree
-		List<String> filenames = git.retrieveFilesInTree(lastCommit);
-
 		for(FileMetadata file: files.get(release)){ //files added or modified in the release
-			for(String filename: filenames){
-				if(file.getFilename().equals(filename)){
-					file.setAge(ChronoUnit.WEEKS.between(file.getCreation().getValue(), lastDate));	/*updates file age
-																									in terms of weeks*/
-				}
-			}
+			file.setAge(ChronoUnit.WEEKS.between(file.getCreation().getValue(), lastDate));	/*updates file age in terms
+																							of weeks*/
 		}
 	}
 

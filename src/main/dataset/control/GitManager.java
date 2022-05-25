@@ -8,15 +8,12 @@ import org.eclipse.jgit.diff.DiffFormatter;
 import org.eclipse.jgit.diff.RawTextComparator;
 import org.eclipse.jgit.lib.ObjectReader;
 import org.eclipse.jgit.revwalk.RevCommit;
-import org.eclipse.jgit.revwalk.RevTree;
 import org.eclipse.jgit.revwalk.filter.CommitTimeRevFilter;
 import org.eclipse.jgit.revwalk.filter.RevFilter;
 import org.eclipse.jgit.treewalk.AbstractTreeIterator;
 import org.eclipse.jgit.treewalk.CanonicalTreeParser;
 import org.eclipse.jgit.treewalk.EmptyTreeIterator;
-import org.eclipse.jgit.treewalk.TreeWalk;
 import org.eclipse.jgit.treewalk.filter.PathSuffixFilter;
-import org.eclipse.jgit.treewalk.filter.TreeFilter;
 
 import java.io.File;
 import java.io.IOException;
@@ -161,34 +158,5 @@ public class GitManager {
         git.close();
 
         return diffs;
-    }
-
-    /**
-     * Scans the tree at the time of a commit. The tree is filtered for java files.
-     *
-     * @param commit : commit to scan
-     * @return : list of java files in the tree at the time of the commit
-     * */
-    public List<String> retrieveFilesInTree(RevCommit commit) throws GitAPIException, IOException {
-        List<String> files = new ArrayList<>();
-
-        Git git = Git.init().setDirectory(new File(path)).call();
-
-        TreeFilter filter = PathSuffixFilter.create(".java");
-        RevTree tree = commit.getTree();
-        TreeWalk treeWalk = new TreeWalk(git.getRepository());
-        treeWalk.setFilter(filter);
-        treeWalk.addTree(tree);
-        treeWalk.setRecursive(false);
-
-        while (treeWalk.next()) {
-            if (treeWalk.isSubtree()) {
-                treeWalk.enterSubtree();
-            } else {
-                files.add(treeWalk.getPathString());
-            }
-        }
-
-        return files;
     }
 }

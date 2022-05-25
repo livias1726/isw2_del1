@@ -65,8 +65,7 @@ public class Main {
 			CSVManager.getInstance().getWekaResult(OUTPUT_PATH, PROJECT, wekaOutput);
 
 		} catch (Exception e) {
-			//LoggingUtils.logException(e);
-			e.printStackTrace();
+			LoggingUtils.logException(e);
 			System.exit(-1);
 		}
 	}

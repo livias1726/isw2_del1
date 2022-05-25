@@ -138,7 +138,7 @@ public class DifferenceTreeManager {
 	 * @param from: the source commit
 	 * @param to: the destination commit
 	 */
-	private void computeChanges(String release, RevCommit from, RevCommit to) throws IOException, GitAPIException {
+	public void computeChanges(String release, RevCommit from, RevCommit to) throws IOException, GitAPIException {
 		DiffFormatter diffFormatter = new DiffFormatter(DisabledOutputStream.INSTANCE);
 
 		GitManager git = GitManager.getInstance(project); //Uses Git API to compute the difference tree
@@ -328,10 +328,7 @@ public class DifferenceTreeManager {
 	 * @param file: file instance to update (add, remove, modify)
 	 * */
 	private void updateListOfFiles(String release, FileMetadata file) {
-		if(!files.containsKey(release)) { //New release in the list: initialize
-			files.put(release, new ArrayList<>());
-		}
-		
+		files.computeIfAbsent(release, k -> new ArrayList<>()); //New release in the list: initialize
 		files.get(release).add(file); //Add the new file instance
 	}
 

@@ -83,7 +83,7 @@ public class LoggingUtils {
     }
 
     public static void logException(Exception e) {
-        String log = Arrays.toString(e.getStackTrace());
+        String log = "An exception occurred: " +  e.getMessage();
         logger.log(Level.SEVERE, log);
     }
 }

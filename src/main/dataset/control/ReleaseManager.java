@@ -2,6 +2,7 @@ package main.dataset.control;
 
 import javafx.util.Pair;
 import main.dataset.entity.Bug;
+import main.utils.LoggingUtils;
 import org.eclipse.jgit.revwalk.RevCommit;
 
 import java.time.LocalDate;
@@ -50,10 +51,6 @@ public class ReleaseManager {
 
 	public String[] getReleaseNames() {
 		return releaseNames;
-	}
-
-	public LocalDate[] getStartDates() {
-		return startDates;
 	}
 
 	public static void setProportion(double newP){ p = newP; }
@@ -156,6 +153,9 @@ public class ReleaseManager {
 			}
 		}
 
+		LoggingUtils.logInt("Number of issues with valid affected versions: ", valid.size());
+		LoggingUtils.logInt("Number of issues with invalid affected versions: ", invalid.size());
+
 		Map<String, List<Bug>> validOrderedByFix = getBugsByRelease(valid);
 		Map<String, List<Bug>> invalidOrderedByFix = getBugsByRelease(invalid);
 		invalidOrderedByFix.remove(releaseNames[0]); //bugs fixed in the first release don't affect other releases
@@ -254,7 +254,7 @@ public class ReleaseManager {
 			iOpen = getIndexFromRelease(bug.getOpeningVer());
 			iInj = getIndexFromRelease(bug.getInjectedVer());
 
-			if(iFix - iOpen != 0){
+			if(iFix - iOpen != 0){ //if opening version and fix version are the same, discard the bug
 				prop += (iFix - iInj)/(iFix - iOpen);
 			}
 		}
@@ -299,13 +299,13 @@ public class ReleaseManager {
 			}
 		}
 
-		if(avs.contains(bug.getFixVer())){ //Fix version is in the list
+		String injVer = getOldestVersion(avs);
+		if (releases.get(injVer).isAfter(bug.getOpeningDate())){ //The older AV is after the OV
 			bug.setAffectedVers(new ArrayList<>()); //Clean up the AVs list
 			return false;
 		}
 
-		String injVer = getOldestVersion(avs);
-		if (releases.get(injVer).isAfter(bug.getOpeningDate())){ //The older AV is after the OV
+		if(avs.contains(bug.getFixVer())){ //Fix version is in the list
 			bug.setAffectedVers(new ArrayList<>()); //Clean up the AVs list
 			return false;
 		}

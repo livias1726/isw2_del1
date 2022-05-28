@@ -3,10 +3,7 @@ package main;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.logging.LogManager;
 
 import main.dataset.control.DatasetManager;
@@ -23,8 +20,8 @@ import java.util.logging.*;
  * */
 public class Main {
 
-	private static final String PROJECT = "OPENJPA"; //change the name to change the project to analyze
-	private static final String OUTPUT_PATH = "..\\Outputs\\";
+	private static String PROJECT; //change the name on the properties to change the project to analyze
+	private static String OUTPUT_PATH;
 
 	/**
 	 * Main method.
@@ -32,18 +29,16 @@ public class Main {
 	 * Calls the controllers to create the dataset and uses it to train the ML models.
 	 * */
 	public static void main(String[] args) {
-		System.setProperty("project_name", PROJECT);
 
 		try {
+            manageProperties();
+
 			//if project is BOOKKEEPER: Jira support ended on 2017-10-17
-            if(System.getProperty("project_name").equals("BOOKKEEPER")){
+            if(PROJECT.equals("BOOKKEEPER")){
                 System.setProperty("date_limit", "2017-10-17");
             }else{
                 System.setProperty("date_limit", LocalDate.now().toString());
             }
-
-			//logger configuration
-			prepareLogger();
 
 			//-----------------------------------------MILESTONE 1------------------------------------------------------
 			//dataset construction
@@ -65,12 +60,13 @@ public class Main {
 			CSVManager.getInstance().getWekaResult(OUTPUT_PATH, PROJECT, wekaOutput);
 
 		} catch (Exception e) {
-			LoggingUtils.logException(e);
+			//LoggingUtils.logException(e);
+			e.printStackTrace();
 			System.exit(-1);
 		}
 	}
 
-	private static Map<String, Integer> getNumberOfFilesPerRelease(Map<String, List<FileMetadata>> dataset) {
+    private static Map<String, Integer> getNumberOfFilesPerRelease(Map<String, List<FileMetadata>> dataset) {
 		Map<String, Integer> res = new LinkedHashMap<>();
 
 		for(Map.Entry<String, List<FileMetadata>> entry: dataset.entrySet()){
@@ -78,6 +74,29 @@ public class Main {
 		}
 
 		return res;
+	}
+
+    private static void manageProperties() throws IOException {
+
+        //System configuration
+		prepareSystem();
+
+        //Logger
+        prepareLogger();
+    }
+
+	private static void prepareSystem() throws IOException {
+		InputStream stream = Main.class.getClassLoader().getResourceAsStream("config.properties");
+		Properties prop = new Properties();
+		if (stream != null) {
+			prop.load(stream);
+		}
+
+		PROJECT = prop.getProperty("project");
+		OUTPUT_PATH = prop.getProperty("output_path");
+
+		System.setProperty("project_name", prop.getProperty("project"));
+		System.setProperty("proportion", prop.getProperty("proportion"));
 	}
 
 	/**

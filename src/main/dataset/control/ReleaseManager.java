@@ -3,8 +3,10 @@ package main.dataset.control;
 import javafx.util.Pair;
 import main.dataset.entity.Bug;
 import main.utils.LoggingUtils;
+import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.revwalk.RevCommit;
 
+import java.io.IOException;
 import java.time.LocalDate;
 import java.util.*;
 
@@ -20,8 +22,6 @@ public class ReleaseManager {
 	private static String[] releaseNames;
 	private static LocalDate[] startDates;
 	private static LocalDate[] endDates;
-
-	private static double p; //Proportion factor
 
 	//Instantiation
 	private static ReleaseManager instance = null;
@@ -52,8 +52,6 @@ public class ReleaseManager {
 	public String[] getReleaseNames() {
 		return releaseNames;
 	}
-
-	public static void setProportion(double newP){ p = newP; }
 
 	//-------------------------------------------Functionalities-----------------------------------------------------
 	/**
@@ -140,7 +138,7 @@ public class ReleaseManager {
 	 *
 	 * @return : input list updated
 	 * */
-	public List<Bug> analyzeBugInfection(List<Bug> bugs) {
+	public List<Bug> analyzeBugInfection(List<Bug> bugs) throws IOException, GitAPIException {
 		List<Bug> valid = new ArrayList<>();
 		List<Bug> invalid = new ArrayList<>();
 
@@ -160,51 +158,11 @@ public class ReleaseManager {
 		Map<String, List<Bug>> invalidOrderedByFix = getBugsByRelease(invalid);
 		invalidOrderedByFix.remove(releaseNames[0]); //bugs fixed in the first release don't affect other releases
 
-		invalid = computeProportion(invalidOrderedByFix, validOrderedByFix);
+		Proportion proportion = Proportion.getInstance();
+		invalid = proportion.computeProportion(invalidOrderedByFix, validOrderedByFix);
 		valid.addAll(invalid);
 
 		return valid;
-	}
-
-	/**
-	 * Computes the AVs of the tickets fixed on release R with the proportion of the tickets
-	 * that has valid AVs from release 1 to R-1.
-	 *
-	 * @param invalid : list of tickets to compute the AVs of
-	 * @param valid : list of tickets with valid AVs
-	 *
-	 * @return : list of tickets with updated AVs
-	 * */
-	private List<Bug> computeProportion(Map<String, List<Bug>> invalid, Map<String, List<Bug>> valid) {
-		List<Bug> bugs = new ArrayList<>();
-
-		for(Map.Entry<String, List<Bug>> invEntry: invalid.entrySet()){
-			String currRel = invEntry.getKey();
-
-			//Proportion computation
-			List<Bug> usedForProportion = new ArrayList<>();
-			for(Map.Entry<String, List<Bug>> validEntry: valid.entrySet()){
-				if(validEntry.getKey().equals(currRel)){ //when the scan reaches the release to analyze update proportion
-					setProportion(updateProportion(usedForProportion));
-					break;
-				}
-
-				usedForProportion.addAll(validEntry.getValue());
-			}
-
-			//IV + AVs computation
-			for(Bug bug: invEntry.getValue()){
-				bug.setInjectedVer(computeInjectedVersion(bug)); //use the updated proportion to get IV
-
-				if(!bug.getInjectedVer().equals(bug.getFixVer())){	/*The bug is not considered if it is
-																	injected and fixed in the same version*/
-					bug.setAffectedVers(computeAffectedVersions(bug));
-					bugs.add(bug);
-				}
-			}
-		}
-
-		return bugs;
 	}
 
 	/**
@@ -233,43 +191,13 @@ public class ReleaseManager {
 	}
 
 	/**
-	 * Computes the proportion factor with a list of bugs.
-	 *
-	 * @param bugs : list of bugs with valid AVs
-	 *
-	 * @return : proportion factor
-	 * */
-	private double updateProportion(List<Bug> bugs) {
-		double iFix;
-		double iOpen;
-		double iInj;
-
-		double prop = 0;
-		if(bugs.isEmpty()){
-			return prop;
-		}
-
-		for(Bug bug: bugs){
-			iFix = getIndexFromRelease(bug.getFixVer());
-			iOpen = getIndexFromRelease(bug.getOpeningVer());
-			iInj = getIndexFromRelease(bug.getInjectedVer());
-
-			if(iFix - iOpen != 0){ //if opening version and fix version are the same, discard the bug
-				prop += (iFix - iInj)/(iFix - iOpen);
-			}
-		}
-
-		return prop/bugs.size();
-	}
-
-	/**
 	 * Computes the affected versions for the bug using information about injected version and fix version.
 	 *
 	 * @param bug : instance for which the affected versions are computed
 	 *
 	 * @return : affected versions
 	 * */
-	private List<String> computeAffectedVersions(Bug bug) {
+	public List<String> computeAffectedVersions(Bug bug) {
 
 		int inj = getIndexFromRelease(bug.getInjectedVer());
 		int fix = getIndexFromRelease(bug.getFixVer());
@@ -285,7 +213,7 @@ public class ReleaseManager {
 	 *
 	 * @return : flag for affected versions validity
 	 * */
-	private boolean hasValidAVs(Bug bug) {
+	public boolean hasValidAVs(Bug bug) {
 		List<String> avs = bug.getAffectedVers();
 
 		if(avs == null || avs.isEmpty()){ //NO info on AVs is present in Jira
@@ -341,7 +269,8 @@ public class ReleaseManager {
 	 *
 	 * @return : injected version
 	 * */
-	private String computeInjectedVersion(Bug bug) {
+	public String computeInjectedVersion(Bug bug, double p) {
+
 		int iOpen = getIndexFromRelease(bug.getOpeningVer());
 		int iFix = getIndexFromRelease(bug.getFixVer());
 		int iInj = (int) Math.floor(iFix - (p*(iFix-iOpen)));
@@ -377,7 +306,7 @@ public class ReleaseManager {
 	 *
 	 * @return : index
 	 * */
-	private int getIndexFromRelease(String ver) {
+	public int getIndexFromRelease(String ver) {
 		int idx = 1;
 		for(String rel: releases.keySet()){
 			if(ver.equals(rel)){

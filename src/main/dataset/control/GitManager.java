@@ -28,19 +28,25 @@ import java.util.*;
  * */
 public class GitManager {
 
-    private final String path;
+    private static String path;
+    private static String project;
+    private final static String basePath = "src/main/resources/";
 
     //Instantiation
     private static GitManager instance = null;
 
     private GitManager(String projName) {
-        this.path = "..\\Sources\\" + projName;
+        project = projName;
+        path = basePath + projName;
     }
 
     public static GitManager getInstance(String projName) {
         if(instance == null) {
             instance = new GitManager(projName);
         }
+
+        path = basePath + projName;
+        project = projName;
         return instance;
     }
 
@@ -51,14 +57,20 @@ public class GitManager {
      * */
     public Map<RevCommit, LocalDate> getCommits() throws GitAPIException {
         Map<RevCommit, LocalDate> commits = new LinkedHashMap<>();
+        Git git = Git.init().setDirectory(new File(path)).call();
+        Iterable<RevCommit> log;
 
         //Set date filter to get only the useful commits
-        LocalDate dateLimit = LocalDate.parse(System.getProperty("date_limit"));
-        RevFilter filter = CommitTimeRevFilter.before(Date.from(dateLimit.atStartOfDay(ZoneId.systemDefault()).toInstant()));
+        if(project.equals(System.getProperty("project_name"))){
+            LocalDate dateLimit = LocalDate.parse(System.getProperty("date_limit"));
+            RevFilter filter = CommitTimeRevFilter.before(Date.from(dateLimit.atStartOfDay(ZoneId.systemDefault()).toInstant()));
 
-        //Retrieve log
-        Git git = Git.init().setDirectory(new File(path)).call();
-        Iterable<RevCommit> log = git.log().setRevFilter(filter).call();
+            //Retrieve log
+            log = git.log().setRevFilter(filter).call();
+        }else{
+            //Retrieve log
+            log = git.log().call();
+        }
 
         //Iterate over the commit log for the project
         LocalDate cmDate;

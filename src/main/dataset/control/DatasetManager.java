@@ -20,7 +20,7 @@ public class DatasetManager {
 	private final String project;
 	private Map<String, LocalDate> releases;
 	private List<Bug> bugs;
-	Map<RevCommit, LocalDate> commits;
+	private Map<RevCommit, LocalDate> commits;
 
 	//Instantiation
 	private static DatasetManager instance = null;
@@ -67,7 +67,7 @@ public class DatasetManager {
 		return files;
 	}
 
-	private Map<String, Map<RevCommit, LocalDate>> manageReleases() {
+	private Map<String, Map<RevCommit, LocalDate>> manageReleases() throws IOException, GitAPIException {
 		ReleaseManager.setReleases(releases); //set releases
 
 		ReleaseManager relMan = ReleaseManager.getInstance();

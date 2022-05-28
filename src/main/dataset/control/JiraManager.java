@@ -16,19 +16,21 @@ import org.json.JSONObject;
  * */
 public class JiraManager {
 
-	private final String project;
+	private static String project;
 
 	//Instantiation
 	private static JiraManager instance = null;
 
-	private JiraManager(String project) {
-		this.project = project;
+	private JiraManager(String projName) {
+		project = projName;
 	}
 
 	public static JiraManager getInstance(String projName) {
 		if(instance == null) {
 			instance = new JiraManager(projName);
 		}
+
+		project = projName;
 		return instance;
 	}
 
@@ -50,7 +52,7 @@ public class JiraManager {
 		for(int i=0; i<versions.length(); i++){
 			version = versions.getJSONObject(i);
 
-			if(version.get("released").equals(true)){
+			if(version.get("released").equals(true) && version.has("releaseDate")){
 				startDate = LocalDate.parse(version.get("releaseDate").toString());
 				currVer = version.get("name").toString();
 				

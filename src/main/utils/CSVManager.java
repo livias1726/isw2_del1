@@ -138,38 +138,27 @@ public class CSVManager {
 	 * Writes in the output file the configuration related to the performances.
 	 * */
 	private void appendModelSettings(FileWriter fw, Configuration config) throws IOException {
-		String classifier = config.getClassifier().toString();
-		int newLine = classifier.indexOf("\n");
-		fw.append(classifier.substring(0, newLine)).append(",");//Classifier
+		fw.append(config.getClassifierName()).append(",");//Classifier
 
 		//Balancing
 		if(config.getSampling() == null) {
 			fw.append("/,");
 		}else {
-			fw.append(config.getSampling().toString().substring(33)).append(",");
+			fw.append(config.getSamplingMethod()).append(",");
 		}
 
 		//FeatureSelection
 		if(config.getFeatSelection() == null) {
 			fw.append("/,");
 		}else {
-			String featSelName = config.getFeatSelection().toString();
-			int point = featSelName.indexOf(".");
-
-			fw.append(featSelName.substring(0, point)).append(",");
+			fw.append(config.getFeatSelectionMethod()).append(",");
 		}
 
 		//Sensitivity
 		if(config.getSensitivity() == null) {
 			fw.append("/,");
 		}else {
-			String matrix = config.getSensitivity().toString();
-
-			if(matrix.contains("10")) {
-				fw.append("Learning,");
-			}else{
-				fw.append("Threshold=0.5,");
-			}
+			fw.append(config.getCostSensitivity()).append(",");
 		}
 	}
 }

@@ -6,7 +6,10 @@ import java.util.*;
 
 import javafx.util.Pair;
 import main.training.entity.Configuration;
+import main.utils.LoggingUtils;
 import weka.attributeSelection.ASSearch;
+import weka.classifiers.rules.ZeroR;
+import weka.core.SelectedTag;
 import weka.core.converters.ArffLoader;
 import weka.core.converters.ArffSaver;
 import weka.filters.supervised.attribute.AttributeSelection;
@@ -24,8 +27,9 @@ import weka.core.Instances;
 import weka.core.converters.CSVLoader;
 import weka.filters.Filter;
 import weka.filters.supervised.instance.Resample;
-import weka.filters.supervised.instance.SMOTE;
 import weka.filters.supervised.instance.SpreadSubsample;
+
+import static weka.attributeSelection.BestFirst.TAGS_SELECTION;
 
 /**
  * Uses Weka API to perform a machine learning classification on the dataset.
@@ -54,16 +58,71 @@ public class WekaManager {
 	 * 	- Cost matrices
 	 * */
 	private WekaManager() {
-
-		ASSearch[] featSelection = new ASSearch[]{null, new BestFirst()};
-		Filter[] samplings = new Filter[]{null, new Resample(), new SpreadSubsample(), new SMOTE()};
-		Classifier[] classifiers = new Classifier[]{new RandomForest(), new NaiveBayes(), new IBk(3)};
-
-		CostMatrix mat1 = populateCostMatrix(1.0);
-		CostMatrix mat2 = populateCostMatrix(10.0); //CFN = 10*CFP
-		CostMatrix[] sensitivities = new CostMatrix[]{null, mat1, mat2};
+		ASSearch[] featSelection = prepareFeaturesSelection();
+		Filter[] samplings = prepareSampling();
+		Classifier[] classifiers = prepareClassifiers();
+		CostMatrix[] sensitivities = prepareSensitivity();
 
 		configureAnalysis(featSelection, samplings, classifiers, sensitivities);
+	}
+
+	private ASSearch[] prepareFeaturesSelection() {
+
+		ASSearch[] featSel = new ASSearch[2];
+
+		BestFirst forwardSearch = new BestFirst(); // default best first
+		featSel[0] = forwardSearch; // forward search
+
+		BestFirst backwardSearch = new BestFirst();
+		backwardSearch.setDirection(new SelectedTag(0, TAGS_SELECTION)); // backward search
+		featSel[1] = backwardSearch;
+
+		return featSel;
+	}
+
+	private Filter[] prepareSampling() {
+		Filter[] sampling = new Filter[2];
+
+		Resample resample = new Resample();
+		resample.setNoReplacement(false); // noReplacement = false
+		resample.setBiasToUniformClass(1.0); // -B 1.0
+		sampling[0] = resample;
+
+		SpreadSubsample spreadSubsample = new SpreadSubsample();
+		spreadSubsample.setDistributionSpread(1.0);
+		sampling[1] = spreadSubsample;
+
+		return sampling;
+	}
+
+	private Classifier[] prepareClassifiers() {
+		Classifier[] classifiers = new Classifier[4];
+
+		ZeroR zeroR = new ZeroR();
+		classifiers[0] = zeroR; // BASELINE: dummy classifier
+
+		RandomForest randomForest = new RandomForest();
+		classifiers[1] = randomForest; // TREE: forest of 100 random trees with unlimited depth
+
+		NaiveBayes naiveBayes = new NaiveBayes();
+		classifiers[2] = naiveBayes; // PROBABILISTIC: bayesian "naive" classification
+
+		IBk iBk = new IBk(3);
+		classifiers[3] = iBk; // LAZY: k-nearest neighbours
+
+		return classifiers;
+	}
+
+	private CostMatrix[] prepareSensitivity() {
+		CostMatrix[] costMatrices = new CostMatrix[3];
+
+		costMatrices[0] = null; // no cost matrix
+
+		costMatrices[1] = populateCostMatrix(1.0); //CFN = CFP
+
+		costMatrices[2] = populateCostMatrix(10.0); //CFN = 10*CFP
+
+		return costMatrices;
 	}
 
 	private CostMatrix populateCostMatrix(double cfn) {
@@ -81,9 +140,20 @@ public class WekaManager {
 		configurations = new ArrayList<>();
 
 		for(Classifier classifier: classifiers){
+			if(classifier.getClass().equals(ZeroR.class)){ // ZeroR is not affected by tuning methods
+				Configuration config = new Configuration(classifier, null, null, null);
+				configurations.add(config);
+
+				continue;
+			}
+
 			for(ASSearch featSelection: featSelections){
 				for(Filter sampling: samplings){
 					for(CostMatrix sensitivity: sensitivities){
+						if(sensitivity != null && sensitivity.getCell(0, 1).equals(10.0)){
+							continue; // BestFirst throws an exception when dealing with CFN = 10*CPN
+						}
+
 						Configuration config = new Configuration(classifier, featSelection, sampling, sensitivity);
 						configurations.add(config);
 					}
@@ -111,21 +181,13 @@ public class WekaManager {
 
 		Instances data = loader.getDataSet();
 		data.setClassIndex(data.numAttributes() - 1); //set class index
-		
+
 		List<Instances> sets = separateInstances(data, values); //generate instances set per release
 
 		//walk-forward
-		int idx = 0;
-		List<Configuration> localConfigurations = null;
-
+		List<Configuration> localConfigurations = new ArrayList<>();
 		for(Configuration config: configurations) {
-			if(idx == 0){
-				localConfigurations = walkForwardEvaluation(sets, config);
-			}else{
-				localConfigurations.addAll(walkForwardEvaluation(sets, config));
-			}
-
-			idx++;
+			localConfigurations.addAll(walkForwardEvaluation(sets, config));
 		}
 
 		return localConfigurations;
@@ -179,7 +241,7 @@ public class WekaManager {
 
 			copied += toCopy;
 		}
-		
+
 		return res;
 	}
 
@@ -195,30 +257,37 @@ public class WekaManager {
 
 		//Configuration
 		ASSearch filter = config.getFeatSelection();
-		Filter sampling = config.getSampling();
-		Classifier classifier = config.getClassifier();
+		Filter sampling;
+		Classifier classifier;
 		CostMatrix sensitivity = config.getSensitivity();
 
-		int i;
+		for (int i=1; i<sets.size(); i++) { //get one set at a time to use as testing
 
-		for (i = 0; i < sets.size(); i ++) { //get one set at a time to use as testing
+			//Init
+			classifier = config.getClassifier();
+			sampling = config.getSampling();
 
 			buildTrainingAndTestSet(sets, i); //sets initialization
 
-			if(filter != null) {
-				applyFeatureSelection(filter); //feature selection
+			if(filter != null){
+				classifier = applyFeatureSelection(filter, classifier); //feature selection
 			}
 
-			if(sampling != null) {
-				applySampling(sampling, classifier); //sampling
+			double minority = countDefectiveInstances(trainingSet, trainingSet.numInstances());
+			if(sampling != null && minority != 0) {
+				classifier = applySampling(sampling, classifier); //sampling
+			}else{
+				sampling = null;
 			}
 
 			Configuration newConfig = setLocalConfiguration(sets, classifier, filter, sampling, sensitivity); //new configuration
 			newConfig.setNumTrainingReleases(i);
 
 			Map<String,Double> performance = computeEvaluation(classifier, sensitivity); //evaluation
-
 			newConfig.setPerformances(performance);
+
+			LoggingUtils.logPerformances(newConfig, performance);
+
 			localConfig.add(newConfig);
 		}
 
@@ -250,20 +319,19 @@ public class WekaManager {
 	 *
 	 * @param featSel : feature selection filter
 	 * */
-	private void applyFeatureSelection(ASSearch featSel) throws Exception {
-		AttributeSelection filter = new AttributeSelection();
-		CfsSubsetEval evaluator = new CfsSubsetEval();
-		filter.setEvaluator(evaluator);
-		filter.setSearch(featSel);
+	private FilteredClassifier applyFeatureSelection(ASSearch featSel, Classifier classifier) {
+		FilteredClassifier fc = new FilteredClassifier();
 
-		if(trainingSet.numInstances() != 0) {
-			filter.setInputFormat(trainingSet);
-			trainingSet = Filter.useFilter(trainingSet, filter);
-		}else {
-			filter.setInputFormat(testSet);
-		}
+		AttributeSelection attSelection = new AttributeSelection();
+		CfsSubsetEval eval = new CfsSubsetEval();
 
-		testSet = Filter.useFilter(testSet, filter);
+		attSelection.setEvaluator(eval);
+		attSelection.setSearch(featSel); // Set the algorithm to use
+
+		fc.setFilter(attSelection); // Apply filter
+		fc.setClassifier(classifier);
+
+		return fc;
 	}
 
 	/**
@@ -272,32 +340,21 @@ public class WekaManager {
 	 * @param sampling : sampling filter
 	 * @param classifier : classifier used
 	 * */
-	private void applySampling(Filter sampling, Classifier classifier) throws Exception {
+	private FilteredClassifier applySampling(Filter sampling, Classifier classifier) {
 		FilteredClassifier fc = new FilteredClassifier();
-		fc.setClassifier(classifier);
 
 		if(sampling.getClass() == Resample.class) {
-			double maxSampleSizePercent = 99.00;
-			double biasToUniformClass = 1.0;
+			int tot = trainingSet.numInstances();
+			double minority = countDefectiveInstances(trainingSet, tot);
+			double majority = tot - minority;
 
-			((Resample)sampling).setBiasToUniformClass(biasToUniformClass);
-			((Resample)sampling).setNoReplacement(false);
-			((Resample)sampling).setSampleSizePercent(maxSampleSizePercent*2);
-
-		}else if(sampling.getClass() == SpreadSubsample.class){
-			double distributionSpread = 1.0;
-			((SpreadSubsample)sampling).setDistributionSpread(distributionSpread);
+			double sampleSizePercent = 100 * ((majority-minority)/minority); //100 * (majority – minority)/minority;
+			((Resample)sampling).setSampleSizePercent(sampleSizePercent); // -Z 100 * (majority – minority)/minority
 		}
 
-		if(trainingSet.numInstances() != 0) {
-			sampling.setInputFormat(trainingSet);
-			fc.setFilter(sampling);
-			trainingSet = Filter.useFilter(trainingSet, sampling);
-		}else {
-			sampling.setInputFormat(testSet);
-			fc.setFilter(sampling);
-			testSet = Filter.useFilter(testSet, sampling);
-		}
+		fc.setFilter(sampling);
+		fc.setClassifier(classifier);
+		return fc;
 	}
 
 	/**
@@ -321,7 +378,7 @@ public class WekaManager {
 		for(Instances is: sets) {
 			tot += is.numInstances();
 		}
-		
+
 		if(tot == 0) {
 			return tot;
 		}
@@ -344,18 +401,18 @@ public class WekaManager {
 
 		int defTest = countDefectiveInstances(testSet, totTest);
 		testDefPerc = ((double)defTest/totTest)*100;
-		
+
 		return new Pair<>(trainDefPerc, testDefPerc);
 	}
 
 	private int countDefectiveInstances(Instances data, int tot) {
 		int defective = 0;
 		for(int i=0; i<tot; i++) {
-			if(data.instance(i).stringValue(data.classIndex()) .equals("Yes")) {
+			if(data.instance(i).stringValue(data.classIndex()).equals("Yes")) {
 				defective++;
 			}
 		}
-		
+
 		return defective;
 	}
 
@@ -363,17 +420,12 @@ public class WekaManager {
 		Evaluation eval;
 		if(sensitivity != null) { //sensitivity
 			classifier = applySensitivity(sensitivity, classifier);
-			eval = new Evaluation(testSet, sensitivity);
+			eval = new Evaluation(trainingSet, sensitivity);
 		}else {
-			eval = new Evaluation(testSet);
+			eval = new Evaluation(trainingSet);
 		}
 
-		//Build classifier
-		if(trainingSet.numInstances() == 0) {
-			classifier.buildClassifier(testSet);
-		}else {
-			classifier.buildClassifier(trainingSet);
-		}
+		classifier.buildClassifier(trainingSet); //build classifier
 
 		eval.evaluateModel(classifier, testSet); //evaluation
 
@@ -384,11 +436,11 @@ public class WekaManager {
 		CostSensitiveClassifier csc = new CostSensitiveClassifier();
 		csc.setClassifier(classifier);
 		csc.setCostMatrix(sensitivity);
-		
+
 		boolean minExpCost;
 		minExpCost = sensitivity.getElement(0, 1) != 10.0;
 		csc.setMinimizeExpectedCost(minExpCost);
-		
+
 		return csc;
 	}
 
@@ -403,7 +455,7 @@ public class WekaManager {
 		performance.put("Recall", eval.recall(1));
 		performance.put("AUC", eval.areaUnderROC(1));
 		performance.put("Kappa", eval.kappa());
-		
+
 		return performance;
 	}
 }

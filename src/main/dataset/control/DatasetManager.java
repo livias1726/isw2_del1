@@ -87,7 +87,7 @@ public class DatasetManager {
 	private void retrieveFromGit() throws GitAPIException {
 		GitManager git = GitManager.getInstance(project);
 
-		commits = git.getCommits(); //list of every commit in the project
+		commits = git.getCommits(project); //list of every commit in the project
 		LoggingUtils.logInt("Total number of commits retrieved: ", commits.size());
 
 		bugs = git.manageBugCommits(bugs, commits); //manage list of commits linked to a jira fix ticket

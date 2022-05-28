@@ -20,8 +20,8 @@ import java.util.logging.*;
  * */
 public class Main {
 
-	private static String PROJECT; //change the name on the properties to change the project to analyze
-	private static String OUTPUT_PATH;
+	private static String project; //change the name on the properties to change the project to analyze
+	private static String output;
 
 	/**
 	 * Main method.
@@ -34,7 +34,7 @@ public class Main {
             manageProperties();
 
 			//if project is BOOKKEEPER: Jira support ended on 2017-10-17
-            if(PROJECT.equals("BOOKKEEPER")){
+            if(project.equals("BOOKKEEPER")){
                 System.setProperty("date_limit", "2017-10-17");
             }else{
                 System.setProperty("date_limit", LocalDate.now().toString());
@@ -42,10 +42,10 @@ public class Main {
 
 			//-----------------------------------------MILESTONE 1------------------------------------------------------
 			//dataset construction
-			Map<String, List<FileMetadata>> dataset = DatasetManager.getInstance(PROJECT).getDataset();
+			Map<String, List<FileMetadata>> dataset = DatasetManager.getInstance(project).getDataset();
 
 			//dataset on csv
-			String datasetPath = CSVManager.getInstance().getDataset(OUTPUT_PATH, PROJECT, dataset);
+			String datasetPath = CSVManager.getInstance().getDataset(output, project, dataset);
 
 			//----------------------------------------MILESTONE 2-------------------------------------------------------
 
@@ -57,11 +57,10 @@ public class Main {
 					WekaManager.getInstance().setWeka(datasetPath, new ArrayList<>(instancesPerRelease.values()));
 
 			//output
-			CSVManager.getInstance().getWekaResult(OUTPUT_PATH, PROJECT, wekaOutput);
+			CSVManager.getInstance().getWekaResult(output, project, wekaOutput);
 
 		} catch (Exception e) {
-			//LoggingUtils.logException(e);
-			e.printStackTrace();
+			LoggingUtils.logException(e);
 			System.exit(-1);
 		}
 	}
@@ -92,8 +91,8 @@ public class Main {
 			prop.load(stream);
 		}
 
-		PROJECT = prop.getProperty("project");
-		OUTPUT_PATH = prop.getProperty("output_path");
+		project = prop.getProperty("project");
+		output = prop.getProperty("output_path");
 
 		System.setProperty("project_name", prop.getProperty("project"));
 		System.setProperty("proportion", prop.getProperty("proportion"));
@@ -106,7 +105,7 @@ public class Main {
 		InputStream stream = Main.class.getClassLoader().getResourceAsStream("logging.properties");
 
 		LogManager.getLogManager().readConfiguration(stream);
-		Logger logger = Logger.getLogger(PROJECT);
+		Logger logger = Logger.getLogger(project);
 
 		LoggingUtils.setLogger(logger);
 	}

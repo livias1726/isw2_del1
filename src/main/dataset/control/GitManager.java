@@ -28,16 +28,14 @@ import java.util.*;
  * */
 public class GitManager {
 
-    private static String path;
     private static String project;
-    private final static String basePath = "..\\Sources\\";
+    private static final String BASE_PATH = "..\\Sources\\";
 
     //Instantiation
     private static GitManager instance = null;
 
     private GitManager(String projName) {
         project = projName;
-        path = basePath + projName;
     }
 
     public static GitManager getInstance(String projName) {
@@ -45,8 +43,6 @@ public class GitManager {
             instance = new GitManager(projName);
         }
 
-        path = basePath + projName;
-        project = projName;
         return instance;
     }
 
@@ -55,7 +51,9 @@ public class GitManager {
      *
      * @return : map of repository commits with date
      * */
-    public Map<RevCommit, LocalDate> getCommits() throws GitAPIException {
+    public Map<RevCommit, LocalDate> getCommits(String project) throws GitAPIException {
+        String path = BASE_PATH + project;
+
         Map<RevCommit, LocalDate> commits = new LinkedHashMap<>();
         Git git = Git.init().setDirectory(new File(path)).call();
         Iterable<RevCommit> log;
@@ -149,6 +147,8 @@ public class GitManager {
      * @return : list of DiffEntry instances
      * */
     public List<DiffEntry> retrieveDifferences(DiffFormatter diffFormatter, RevCommit from, RevCommit to) throws GitAPIException, IOException {
+        String path = BASE_PATH + project;
+
         Git git = Git.init().setDirectory(new File(path)).call();
 
         diffFormatter.setRepository(git.getRepository());

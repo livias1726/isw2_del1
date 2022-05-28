@@ -55,7 +55,7 @@ public class Proportion {
 
             //GIT
             git = GitManager.getInstance(projName);
-            commits = git.getCommits(); //list of every commit in the project
+            commits = git.getCommits(projName); //list of every commit in the project
             LoggingUtils.logInt(projName + " total commits: ", commits.size());
 
             bugs = git.manageBugCommits(bugs, commits); //manage list of commits linked to a jira fix ticket

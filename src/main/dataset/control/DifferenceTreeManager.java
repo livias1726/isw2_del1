@@ -145,24 +145,14 @@ public class DifferenceTreeManager {
 		List<DiffEntry> diffs = git.retrieveDifferences(diffFormatter, from, to);
 
 		for (DiffEntry diff : diffs) {
-			switch(diff.getChangeType()) {
-				case ADD:
-					manageAddition(release, to, diffFormatter, diff);
-					break;
-				case MODIFY:
-					manageModified(release, to, diffFormatter, diff);
-					break;
-				case DELETE:
-					manageDeletion(release, diff.getOldPath());
-					break;
-				case RENAME:
-					manageRenaming(release, diff.getOldPath(), diff.getNewPath());
-					break;
-				case COPY:
-					manageCopying(release, diff.getOldPath(), diff.getNewPath());
-					break;
-				default:
-					break;
+			switch (diff.getChangeType()) {
+				case ADD -> manageAddition(release, to, diffFormatter, diff);
+				case MODIFY -> manageModified(release, to, diffFormatter, diff);
+				case DELETE -> manageDeletion(release, diff.getOldPath());
+				case RENAME -> manageRenaming(release, diff.getOldPath(), diff.getNewPath());
+				case COPY -> manageCopying(release, diff.getOldPath(), diff.getNewPath());
+				default -> {
+				}
 			}
 		}
 	}
@@ -183,7 +173,7 @@ public class DifferenceTreeManager {
 		FileMetadata file = getFile(release, diff.getNewPath());
 
 		//If the file does not exist or was deleted in the past, create a new FileMetadata instance
-		if(file == null) {
+		if(file == null && !diff.getNewPath().contains("Test")) {
 			FileMetadata f = new FileMetadata(diff.getNewPath(), release, to, additionDate, creator.getName());
 
 			//Manage the LOC modifications

@@ -2,6 +2,7 @@ package main.utils;
 
 import main.dataset.entity.Bug;
 import main.dataset.entity.FileMetadata;
+import main.training.entity.Configuration;
 import org.eclipse.jgit.revwalk.RevCommit;
 
 import java.text.DecimalFormat;
@@ -85,5 +86,38 @@ public class LoggingUtils {
     public static void logException(Exception e) {
         String log = "An exception occurred: " +  e.getMessage();
         logger.log(Level.SEVERE, log);
+    }
+
+    public static void logPerformances(Configuration config, Map<String, Double> performance) {
+        logger.setLevel(Level.INFO);
+
+        StringBuilder stringBuilder = new StringBuilder();
+        stringBuilder.append("\nPERFORMANCES:");
+
+        stringBuilder.append("\n\t").append("Classifier: ").append(config.getClassifierName()); //Classifier
+
+        //Balancing
+        stringBuilder.append("\n\t").append("Sampling: ");
+        if(config.getSampling() != null) {
+            stringBuilder.append(config.getSamplingMethod());
+        }
+
+        //FeatureSelection
+        stringBuilder.append("\n\t").append("Features selection: ");
+        if(config.getFeatSelection() != null) {
+            stringBuilder.append(config.getFeatSelectionMethod());
+        }
+
+        //Sensitivity
+        stringBuilder.append("\n\t").append("Cost Matrix: ");
+        if(config.getSensitivity() != null) {
+            stringBuilder.append(config.getCostSensitivity());
+        }
+
+        stringBuilder.append("\n\t").append("Performances: ").append(performance);
+
+        String log = stringBuilder.toString();
+
+        logger.info(log);
     }
 }

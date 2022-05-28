@@ -30,7 +30,7 @@ public class GitManager {
 
     private static String path;
     private static String project;
-    private final static String basePath = "src/main/resources/";
+    private final static String basePath = "..\\Sources\\";
 
     //Instantiation
     private static GitManager instance = null;

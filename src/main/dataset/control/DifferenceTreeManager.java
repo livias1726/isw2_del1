@@ -146,13 +146,21 @@ public class DifferenceTreeManager {
 
 		for (DiffEntry diff : diffs) {
 			switch (diff.getChangeType()) {
-				case ADD -> manageAddition(release, to, diffFormatter, diff);
-				case MODIFY -> manageModified(release, to, diffFormatter, diff);
-				case DELETE -> manageDeletion(release, diff.getOldPath());
-				case RENAME -> manageRenaming(release, diff.getOldPath(), diff.getNewPath());
-				case COPY -> manageCopying(release, diff.getOldPath(), diff.getNewPath());
-				default -> {
-				}
+				case ADD:
+					manageAddition(release, to, diffFormatter, diff);
+					break;
+				case MODIFY:
+					manageModified(release, to, diffFormatter, diff);
+					break;
+				case DELETE:
+					manageDeletion(release, diff.getOldPath());
+					break;
+				case RENAME:
+					manageRenaming(release, diff.getOldPath(), diff.getNewPath());
+					break;
+				case COPY:
+					manageCopying(release, diff.getOldPath(), diff.getNewPath());
+					break;
 			}
 		}
 	}

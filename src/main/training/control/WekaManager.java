@@ -259,6 +259,7 @@ public class WekaManager {
 		ASSearch filter = config.getFeatSelection();
 		Filter sampling;
 		Classifier classifier;
+		Classifier baseClassifier = config.getClassifier(); //untouched copy of the classifier instance to get its name
 		CostMatrix sensitivity = config.getSensitivity();
 
 		for (int i=1; i<sets.size(); i++) { //get one set at a time to use as testing
@@ -280,7 +281,7 @@ public class WekaManager {
 				sampling = null;
 			}
 
-			Configuration newConfig = setLocalConfiguration(sets, classifier, filter, sampling, sensitivity); //new configuration
+			Configuration newConfig = setLocalConfiguration(sets, baseClassifier, filter, sampling, sensitivity); //new configuration
 			newConfig.setNumTrainingReleases(i);
 
 			Map<String,Double> performance = computeEvaluation(classifier, sensitivity); //evaluation

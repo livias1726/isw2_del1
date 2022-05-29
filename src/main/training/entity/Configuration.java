@@ -29,7 +29,10 @@ public class Configuration {
 
     public Configuration(Classifier classifier, ASSearch featSelection, Filter sampling, CostMatrix sensitivity){
         this.classifier = classifier;
-        this.classifierName = String.valueOf(classifier.getClass());
+        this.classifierName = classifier.getClass().toString()
+                                .replaceFirst("class weka\\.classifiers\\.(.*)\\.", "");
+
+        System.out.println("classifier: " + classifierName);
 
         this.featSelection = featSelection;
         if(featSelection != null){

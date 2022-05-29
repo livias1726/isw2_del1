@@ -32,8 +32,6 @@ public class Configuration {
         this.classifierName = classifier.getClass().toString()
                                 .replaceFirst("class weka\\.classifiers\\.(.*)\\.", "");
 
-        System.out.println("classifier: " + classifierName);
-
         this.featSelection = featSelection;
         if(featSelection != null){
             setFeatSelectionMethod(String.valueOf(featSelection.getOptions()[1]));
@@ -91,12 +89,10 @@ public class Configuration {
     }
 
     public void setFeatSelectionMethod(String direction) {
-        switch(direction){
-            case "0":
-                this.featSelectionMethod = "Backward search";
-                break;
-            case "1":
-                this.featSelectionMethod = "Forward search";
+        if(direction.equals("0")) {
+            this.featSelectionMethod = "Backward search";
+        }else if(direction.equals("1")){
+            this.featSelectionMethod = "Forward search";
         }
     }
 

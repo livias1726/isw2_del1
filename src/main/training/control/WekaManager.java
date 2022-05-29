@@ -58,12 +58,12 @@ public class WekaManager {
 	 * 	- Cost matrices
 	 * */
 	private WekaManager() {
+		Classifier[] classifiers = prepareClassifiers();
 		ASSearch[] featSelection = prepareFeaturesSelection();
 		Filter[] samplings = prepareSampling();
-		Classifier[] classifiers = prepareClassifiers();
 		CostMatrix[] sensitivities = prepareSensitivity();
 
-		configureAnalysis(featSelection, samplings, classifiers, sensitivities);
+		configureAnalysis(classifiers, featSelection, samplings, sensitivities);
 	}
 
 	private ASSearch[] prepareFeaturesSelection() {
@@ -136,7 +136,7 @@ public class WekaManager {
 		return matrix;
 	}
 
-	private void configureAnalysis(ASSearch[] featSelections, Filter[] samplings, Classifier[] classifiers, CostMatrix[] sensitivities) {
+	private void configureAnalysis(Classifier[] classifiers, ASSearch[] featSelections, Filter[] samplings, CostMatrix[] sensitivities) {
 		configurations = new ArrayList<>();
 
 		for(Classifier classifier: classifiers){
@@ -349,8 +349,10 @@ public class WekaManager {
 			double minority = countDefectiveInstances(trainingSet, tot);
 			double majority = tot - minority;
 
-			double sampleSizePercent = 100 * ((majority-minority)/minority); //100 * (majority – minority)/minority;
-			((Resample)sampling).setSampleSizePercent(sampleSizePercent); // -Z 100 * (majority – minority)/minority
+			if(minority != 0){
+				double sampleSizePercent = 100 * ((majority-minority)/minority);
+				((Resample)sampling).setSampleSizePercent(sampleSizePercent);
+			}
 		}
 
 		fc.setFilter(sampling);

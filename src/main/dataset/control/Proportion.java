@@ -32,7 +32,7 @@ public class Proportion {
         return instance;
     }
 
-    public void setProportion(double pro){
+    public static void setProportion(double pro){
         p = pro;
     }
 
@@ -54,7 +54,7 @@ public class Proportion {
             LoggingUtils.logInt(projName + " initial bugs: ", bugs.size());
 
             //GIT
-            git = GitManager.getInstance(projName);
+            git = GitManager.getInstance();
             commits = git.getCommits(projName); //list of every commit in the project
             LoggingUtils.logInt(projName + " total commits: ", commits.size());
 
@@ -102,7 +102,7 @@ public class Proportion {
             List<Bug> usedForProportion = new ArrayList<>();
             for(Map.Entry<String, List<Bug>> validEntry: valid.entrySet()){
                 if(validEntry.getKey().equals(currRel)){ //when the scan reaches the release to analyze update proportion
-                    p = updateProportion(usedForProportion);
+                    setProportion(updateProportion(usedForProportion));
                     break;
                 }
 

@@ -28,19 +28,16 @@ import java.util.*;
  * */
 public class GitManager {
 
-    private static String project;
     private static final String BASE_PATH = "..\\Sources\\";
 
     //Instantiation
     private static GitManager instance = null;
 
-    private GitManager(String projName) {
-        project = projName;
-    }
+    private GitManager() {}
 
-    public static GitManager getInstance(String projName) {
+    public static GitManager getInstance() {
         if(instance == null) {
-            instance = new GitManager(projName);
+            instance = new GitManager();
         }
 
         return instance;
@@ -146,7 +143,7 @@ public class GitManager {
      *
      * @return : list of DiffEntry instances
      * */
-    public List<DiffEntry> retrieveDifferences(DiffFormatter diffFormatter, RevCommit from, RevCommit to) throws GitAPIException, IOException {
+    public List<DiffEntry> retrieveDifferences(String project, DiffFormatter diffFormatter, RevCommit from, RevCommit to) throws GitAPIException, IOException {
         String path = BASE_PATH + project;
 
         Git git = Git.init().setDirectory(new File(path)).call();

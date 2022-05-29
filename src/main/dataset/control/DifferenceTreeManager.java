@@ -141,8 +141,8 @@ public class DifferenceTreeManager {
 	public void computeChanges(String release, RevCommit from, RevCommit to) throws IOException, GitAPIException {
 		DiffFormatter diffFormatter = new DiffFormatter(DisabledOutputStream.INSTANCE);
 
-		GitManager git = GitManager.getInstance(project); //Uses Git API to compute the difference tree
-		List<DiffEntry> diffs = git.retrieveDifferences(diffFormatter, from, to);
+		GitManager git = GitManager.getInstance(); //Uses Git API to compute the difference tree
+		List<DiffEntry> diffs = git.retrieveDifferences(project, diffFormatter, from, to);
 
 		for (DiffEntry diff : diffs) {
 			switch (diff.getChangeType()) {

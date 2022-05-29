@@ -21,13 +21,13 @@ public class JiraManager {
 	//Instantiation
 	private static JiraManager instance = null;
 
-	private JiraManager(String projName) {
-		project = projName;
+	private JiraManager() {
+
 	}
 
 	public static JiraManager getInstance(String projName) {
 		if(instance == null) {
-			instance = new JiraManager(projName);
+			instance = new JiraManager();
 		}
 
 		project = projName;

@@ -85,7 +85,7 @@ public class DatasetManager {
 	}
 
 	private void retrieveFromGit() throws GitAPIException {
-		GitManager git = GitManager.getInstance(project);
+		GitManager git = GitManager.getInstance();
 
 		commits = git.getCommits(project); //list of every commit in the project
 		LoggingUtils.logInt("Total number of commits retrieved: ", commits.size());

@@ -137,16 +137,20 @@ public class WekaManager {
 				continue;
 			}
 
-			for(ASSearch featSelection: featSelections){
-				for(Filter sampling: samplings){
-					for(CostMatrix sensitivity: sensitivities){
-						if(sensitivity != null && sensitivity.getCell(0, 1).equals(10.0)){
-							continue; // BestFirst throws an exception when dealing with CFN = 10*CPN
-						}
+			setClassificationEnhancement(classifier, featSelections, samplings, sensitivities);
+		}
+	}
 
-						Configuration config = new Configuration(classifier, featSelection, sampling, sensitivity);
-						configurations.add(config);
+	private void setClassificationEnhancement(Classifier classifier, ASSearch[] featSelections, Filter[] samplings, CostMatrix[] sensitivities) {
+		for(ASSearch featSelection: featSelections){
+			for(Filter sampling: samplings){
+				for(CostMatrix sensitivity: sensitivities){
+					if(sensitivity != null && sensitivity.getCell(0, 1).equals(10.0)){
+						continue; // BestFirst throws an exception when dealing with CFN = 10*CPN
 					}
+
+					Configuration config = new Configuration(classifier, featSelection, sampling, sensitivity);
+					configurations.add(config);
 				}
 			}
 		}

@@ -42,15 +42,14 @@ public class Main {
                 System.setProperty("date_limit", LocalDate.now().toString());
             }
 
-            if(System.getProperty("proportion").equals("TrainingTest")){
+            if(System.getProperty("proportion_method").equals("TrainingTest")){
                 trainingTestAnalysis();
             }else{
                 incrementalAnalysis();
             }
 
 		} catch (Exception e) {
-			//LoggingUtils.logException(e);
-            e.printStackTrace();
+			LoggingUtils.logException(e);
 			System.exit(-1);
 		}
 	}
@@ -156,7 +155,7 @@ public class Main {
 		output = prop.getProperty("output_path");
 
 		System.setProperty("project_name", prop.getProperty("project"));
-		System.setProperty("proportion", prop.getProperty("proportion"));
+		System.setProperty("proportion_method", prop.getProperty("proportion"));
 	}
 
 	/**

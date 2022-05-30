@@ -1,6 +1,5 @@
 package main.dataset.control;
 
-import javafx.util.Pair;
 import main.dataset.entity.FileMetadata;
 import main.utils.LoggingUtils;
 import org.eclipse.jgit.api.errors.GitAPIException;
@@ -39,7 +38,7 @@ public class DatasetManagerITT extends DatasetManager{
                 break;
             }else{
                 currCmPerRelease.put(currEntry.getKey(), currEntry.getValue());
-                results.add(manageFiles(currCmPerRelease));
+                results.add(manageFilesITT(currCmPerRelease));
             }
 
             totConsideredReleases--;
@@ -48,7 +47,7 @@ public class DatasetManagerITT extends DatasetManager{
         return results;
     }
 
-    private Map<String, List<FileMetadata>> manageFiles(Map<String, Map<RevCommit, LocalDate>> cmPerRelease) throws GitAPIException, IOException {
+    private Map<String, List<FileMetadata>> manageFilesITT(Map<String, Map<RevCommit, LocalDate>> cmPerRelease) throws GitAPIException, IOException {
         FilesManager fm = new FilesManager(project, bugs);
 
         Map<String, List<FileMetadata>> files = fm.analyzeFilesEvolution(cmPerRelease);

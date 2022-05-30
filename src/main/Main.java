@@ -75,14 +75,15 @@ public class Main {
 
     private static void trainingTestAnalysis() throws Exception {
         //trainingSets construction
-        DatasetManagerITT dm = new DatasetManagerITT(project);
-        List<Map<String, List<FileMetadata>>> trainingSets = dm.getDatasetITT();
+        DatasetManagerITT dmITT = new DatasetManagerITT(project);
+        List<Map<String, List<FileMetadata>>> trainingSets = dmITT.getDatasetITT();
+        trainingSets.remove(trainingSets.size()-1);
 
-        int totTraining = trainingSets.size();
-        Map<String, List<FileMetadata>> testSets = trainingSets.get(totTraining-1);
-        trainingSets.remove(totTraining-1);
+        //testSets construction
+        DatasetManager dm = new DatasetManager(project);
+        Map<String, List<FileMetadata>> testSets = dm.getDataset();
 
-        //trainingSets on csv
+        //dataset creation
         int idx = 1;
         String trainingSetPath;
         Map<String, List<FileMetadata>> testSet;

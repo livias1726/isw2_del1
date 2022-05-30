@@ -71,16 +71,18 @@ public class WekaManager {
 	}
 
 	private Filter[] prepareSampling() {
-		Filter[] sampling = new Filter[2];
+		Filter[] sampling = new Filter[3];
+
+		sampling[0] = null; // no sampling
 
 		Resample resample = new Resample();
 		resample.setNoReplacement(false); // noReplacement = false
 		resample.setBiasToUniformClass(1.0); // -B 1.0
-		sampling[0] = resample;
+		sampling[1] = resample; //over-sampling
 
 		SpreadSubsample spreadSubsample = new SpreadSubsample();
 		spreadSubsample.setDistributionSpread(1.0);
-		sampling[1] = spreadSubsample;
+		sampling[2] = spreadSubsample; //under-sampling
 
 		return sampling;
 	}

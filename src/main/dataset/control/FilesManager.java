@@ -23,28 +23,18 @@ import org.eclipse.jgit.util.io.DisabledOutputStream;
  *
  * Analyzes the commit log to report every addition, deletion and changing to java files in the project.
  */
-public class DifferenceTreeManager {
+public class FilesManager {
 
-	private final String project;
-	private final List<Bug> bugs;
-	private final Map<String, List<FileMetadata>> files; //map of releases and list of files
-	private final List<FileMetadata> chgSet; //set of files committed together
+	protected final String project;
+	protected final List<Bug> bugs;
+	protected final Map<String, List<FileMetadata>> files; //map of releases and list of files
+	protected final List<FileMetadata> chgSet; //set of files committed together
 
-	//Instantiation
-	private static DifferenceTreeManager instance = null;
-
-	private DifferenceTreeManager(String projectName, List<Bug> bugs) {
+	public FilesManager(String projectName, List<Bug> bugs) {
 		this.project = projectName;
 		this.bugs = bugs;
 		this.files = new LinkedHashMap<>();
 		this.chgSet = new ArrayList<>();
-	}
-
-	public static DifferenceTreeManager getInstance(String projectName, List<Bug> bugs) {
-		if(instance == null) {
-			instance = new DifferenceTreeManager(projectName, bugs);
-		}
-		return instance;
 	}
 
 	//--------------------------------------------Getters and Setters---------------------------------------------------

@@ -89,8 +89,6 @@ public class LoggingUtils {
     }
 
     public static void logPerformances(Configuration config, Map<String, Double> performance) {
-        logger.setLevel(Level.INFO);
-
         StringBuilder stringBuilder = new StringBuilder();
         stringBuilder.append("\nPERFORMANCES:");
 

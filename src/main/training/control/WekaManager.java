@@ -36,19 +36,10 @@ import static weka.attributeSelection.BestFirst.TAGS_SELECTION;
  * */
 public class WekaManager {
 
-	private Instances trainingSet;
-	private Instances testSet;
+	protected Instances trainingSet;
+	protected Instances testSet;
 
-	private List<Configuration> configurations;
-
-	//-------------------------------------------------Instantiation-----------------------------------------------
-	private static WekaManager instance = null; //Singleton
-	public static WekaManager getInstance() {
-		if(instance == null) {
-			instance = new WekaManager();
-		}
-		return instance;
-	}
+	protected List<Configuration> configurations;
 
 	/**
 	 * Prepares the Weka analysis with every possible configuration of:
@@ -57,7 +48,7 @@ public class WekaManager {
 	 * 	- Classifiers
 	 * 	- Cost matrices
 	 * */
-	private WekaManager() {
+	public WekaManager() {
 		Classifier[] classifiers = prepareClassifiers();
 		ASSearch[] featSelection = prepareFeaturesSelection();
 		Filter[] samplings = prepareSampling();
@@ -162,7 +153,6 @@ public class WekaManager {
 		}
 	}
 
-	//-------------------------------------------------Getters & Setters------------------------------------------------
 	/**
 	 * Executes the ML analysis on the dataset.
 	 *
@@ -200,10 +190,12 @@ public class WekaManager {
 	 *
 	 * @return : new path
 	 * */
-	private String convertCSVToArff(String csvFile) throws IOException {
+	protected String convertCSVToArff(String csvFile) throws Exception {
 		//Load CSV
 		CSVLoader loader = new CSVLoader();
 		loader.setSource(new File(csvFile));
+
+		loader.setOptions(new String[]{"-L", "Buggy:No,Yes"}); //Some sets may not have positive instances
 
 		//Save ARFF
 		ArffSaver saver = new ArffSaver();
@@ -213,12 +205,12 @@ public class WekaManager {
 		saver.getInstances().deleteAttributeAt(0); //version
 		saver.getInstances().deleteAttributeAt(0); //filename
 
-		csvFile = csvFile.replace(".csv", ".arff");
+		String arffFile = csvFile.replace(".csv", ".arff");
 
-		saver.setFile(new File(csvFile));
+		saver.setFile(new File(arffFile));
 		saver.writeBatch();
 
-		return csvFile;
+		return arffFile;
 	}
 
 	/**
@@ -252,7 +244,7 @@ public class WekaManager {
 	 *
 	 * @return :
 	 * */
-	private List<Configuration> walkForwardEvaluation(List<Instances> sets, Configuration config) throws Exception {
+	protected List<Configuration> walkForwardEvaluation(List<Instances> sets, Configuration config) throws Exception {
 		List<Configuration> localConfig = new ArrayList<>();
 
 		//Configuration
@@ -320,7 +312,7 @@ public class WekaManager {
 	 *
 	 * @param featSel : feature selection filter
 	 * */
-	private FilteredClassifier applyFeatureSelection(ASSearch featSel, Classifier classifier) {
+	protected FilteredClassifier applyFeatureSelection(ASSearch featSel, Classifier classifier) {
 		FilteredClassifier fc = new FilteredClassifier();
 
 		AttributeSelection attSelection = new AttributeSelection();
@@ -341,7 +333,7 @@ public class WekaManager {
 	 * @param sampling : sampling filter
 	 * @param classifier : classifier used
 	 * */
-	private FilteredClassifier applySampling(Filter sampling, Classifier classifier) {
+	protected FilteredClassifier applySampling(Filter sampling, Classifier classifier) {
 		FilteredClassifier fc = new FilteredClassifier();
 
 		if(sampling.getClass() == Resample.class) {
@@ -363,7 +355,7 @@ public class WekaManager {
 	/**
 	 * Instantiates a new Configuration instance to separate different types of percentages.
 	 * */
-	private Configuration setLocalConfiguration(List<Instances> sets, Classifier classifier, ASSearch filter, Filter sampling, CostMatrix sensitivity) {
+	protected Configuration setLocalConfiguration(List<Instances> sets, Classifier classifier, ASSearch filter, Filter sampling, CostMatrix sensitivity) {
 		Configuration config = new Configuration(classifier, filter, sampling, sensitivity);
 
 		double trainingPerc = computeTrainingPerc(sets);
@@ -408,7 +400,7 @@ public class WekaManager {
 		return new Pair<>(trainDefPerc, testDefPerc);
 	}
 
-	private int countDefectiveInstances(Instances data, int tot) {
+	protected int countDefectiveInstances(Instances data, int tot) {
 		int defective = 0;
 		for(int i=0; i<tot; i++) {
 			if(data.instance(i).stringValue(data.classIndex()).equals("Yes")) {
@@ -419,7 +411,7 @@ public class WekaManager {
 		return defective;
 	}
 
-	private Map<String, Double> computeEvaluation(Classifier classifier, CostMatrix sensitivity) throws Exception {
+	protected Map<String, Double> computeEvaluation(Classifier classifier, CostMatrix sensitivity) throws Exception {
 		Evaluation eval;
 		if(sensitivity != null) { //sensitivity
 			classifier = applySensitivity(sensitivity, classifier);

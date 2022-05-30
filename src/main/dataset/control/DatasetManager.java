@@ -17,21 +17,13 @@ import org.eclipse.jgit.revwalk.RevCommit;
  * */
 public class DatasetManager {
 	
-	private final String project;
-	private Map<String, LocalDate> releases;
-	private List<Bug> bugs;
-	private Map<RevCommit, LocalDate> commits;
+	protected final String project;
+	protected Map<String, LocalDate> releases;
+	protected List<Bug> bugs;
+	protected Map<RevCommit, LocalDate> commits;
 
-	//Instantiation
-	private static DatasetManager instance = null;
-    private DatasetManager(String projectName) {
-    	this.project = projectName;
-    }
-    public static DatasetManager getInstance(String projectName) {
-        if(instance == null) {
-        	instance = new DatasetManager(projectName);
-        }
-        return instance;
+    public DatasetManager(String projectName) {
+		this.project = projectName;
     }
 
 	/**
@@ -54,7 +46,7 @@ public class DatasetManager {
 	}
 
 	private Map<String, List<FileMetadata>> manageFiles(Map<String, Map<RevCommit, LocalDate>> cmPerRelease) throws GitAPIException, IOException {
-		DifferenceTreeManager dt = DifferenceTreeManager.getInstance(project, bugs);
+		FilesManager dt = new FilesManager(project, bugs);
 
 		Map<String, List<FileMetadata>> files = dt.analyzeFilesEvolution(cmPerRelease);
 		LoggingUtils.logFilesPerRelease(files.entrySet());
@@ -67,7 +59,7 @@ public class DatasetManager {
 		return files;
 	}
 
-	private Map<String, Map<RevCommit, LocalDate>> manageReleases() throws IOException, GitAPIException {
+	protected Map<String, Map<RevCommit, LocalDate>> manageReleases() throws IOException, GitAPIException {
 		ReleaseManager.setReleases(releases); //set releases
 
 		ReleaseManager relMan = ReleaseManager.getInstance();
@@ -84,7 +76,7 @@ public class DatasetManager {
 		return cmPerRelease;
 	}
 
-	private void retrieveFromGit() throws GitAPIException {
+	protected void retrieveFromGit() throws GitAPIException {
 		GitManager git = GitManager.getInstance();
 
 		commits = git.getCommits(project); //list of every commit in the project
@@ -99,7 +91,7 @@ public class DatasetManager {
 		bugs = git.processFixCommitInfo(bugs); //set the fix commit for every bug considered
 	}
 
-	private void retrieveFromJira() throws IOException {
+	protected void retrieveFromJira() throws IOException {
 		JiraManager jira = JiraManager.getInstance(project);
 
 		releases = jira.getProjectVersions(); //list of releases

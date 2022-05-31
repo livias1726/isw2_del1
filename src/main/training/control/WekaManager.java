@@ -106,13 +106,13 @@ public class WekaManager {
 	}
 
 	private CostMatrix[] prepareSensitivity() {
-		CostMatrix[] costMatrices = new CostMatrix[3];
+		CostMatrix[] costMatrices = new CostMatrix[2];
 
 		costMatrices[0] = null; // no cost matrix
 
 		costMatrices[1] = populateCostMatrix(1.0); //CFN = CFP
 
-		costMatrices[2] = populateCostMatrix(10.0); //CFN = 10*CFP
+		// BestFirst throws an exception when dealing with CFN = 10*CPN
 
 		return costMatrices;
 	}
@@ -147,10 +147,6 @@ public class WekaManager {
 		for(ASSearch featSelection: featSelections){
 			for(Filter sampling: samplings){
 				for(CostMatrix sensitivity: sensitivities){
-					if(sensitivity != null && sensitivity.getCell(0, 1).equals(10.0)){
-						continue; // BestFirst throws an exception when dealing with CFN = 10*CPN
-					}
-
 					Configuration config = new Configuration(classifier, featSelection, sampling, sensitivity);
 					configurations.add(config);
 				}

@@ -88,21 +88,22 @@ public class Main {
         String trainingSetPath;
         Map<String, List<FileMetadata>> testSet;
         String testSetPath;
+        List<Configuration> wekaOutput = new ArrayList<>();
         for(Map<String, List<FileMetadata>> trainingSet: trainingSets){ //Walk forward
             testSet = getTestSet(testSets, trainingSet);
 
             trainingSetPath = CSVManager.getInstance().getDataset(output, project + "ITT_Training" + idx, trainingSet);
             testSetPath = CSVManager.getInstance().getDataset(output, project + "ITT_Test" + idx, testSet);
 
-            WekaManagerITT weka = new WekaManagerITT();
             //training
-            List<Configuration> wekaOutput = weka.setWekaITT(trainingSetPath, testSetPath, idx);
-
-            //output
-            CSVManager.getInstance().getWekaResult(output, project + "ITT" + idx, wekaOutput);
+            WekaManagerITT weka = new WekaManagerITT();
+            wekaOutput.addAll(weka.setWekaITT(trainingSetPath, testSetPath, idx));
 
             idx++;
         }
+
+        //output
+        CSVManager.getInstance().getWekaResult(output, project + "ITT", wekaOutput);
     }
 
     private static Map<String, List<FileMetadata>> getTestSet(Map<String, List<FileMetadata>> testSets, Map<String, List<FileMetadata>> trainingSet) {

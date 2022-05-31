@@ -4,6 +4,7 @@ import weka.attributeSelection.ASSearch;
 import weka.classifiers.Classifier;
 import weka.classifiers.CostMatrix;
 import weka.filters.Filter;
+import weka.filters.supervised.instance.Resample;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -39,16 +40,16 @@ public class Configuration {
 
         this.sampling = sampling;
         if(sampling != null){
-            this.samplingMethod = String.valueOf(sampling.getClass());
+            if(sampling.getClass().equals(Resample.class))
+                this.samplingMethod = "Over sampling";
+            else{
+                this.samplingMethod = "Under sampling";
+            }
         }
 
         this.sensitivity = sensitivity;
         if(sensitivity != null){
-            if(sensitivity.toString().contains("10")) {
-                this.costSensitivity = "Learning";
-            }else{
-                this.costSensitivity = "Threshold=0.5";
-            }
+            this.costSensitivity = "Sensitive threshold";
         }
 
         this.performances = new LinkedHashMap<>();

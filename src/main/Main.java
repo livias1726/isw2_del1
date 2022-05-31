@@ -42,10 +42,13 @@ public class Main {
                 System.setProperty("date_limit", LocalDate.now().toString());
             }
 
-            if(System.getProperty("proportion_method").equals("TrainingTest")){
+            String proportionMethod = System.getProperty("proportion_method");
+            if(proportionMethod.equals("TrainingTest")){
                 trainingTestAnalysis();
-            }else{
+            }else if(proportionMethod.equals("Incremental")){
                 incrementalAnalysis();
+            } else {
+                throw new Exception("Invalid Proportion method.");
             }
 
 		} catch (Exception e) {

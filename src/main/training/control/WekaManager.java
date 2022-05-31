@@ -57,6 +57,11 @@ public class WekaManager {
 
 		ASSearch[] featSel = new ASSearch[2];
 
+		featSel[0] = null; // no feature selection
+
+		BestFirst forwardSearch = new BestFirst(); // default best first
+		featSel[1] = forwardSearch; // forward search
+		/*
 		BestFirst forwardSearch = new BestFirst(); // default best first
 		featSel[0] = forwardSearch; // forward search
 
@@ -64,6 +69,8 @@ public class WekaManager {
 		//backwardSearch.setDirection(new SelectedTag(0, TAGS_SELECTION)); // backward search
 		backwardSearch.setOptions(new String[]{"-D", "0"});
 		featSel[1] = backwardSearch;
+
+		 */
 
 		return featSel;
 	}
@@ -104,13 +111,13 @@ public class WekaManager {
 	}
 
 	private CostMatrix[] prepareSensitivity() {
-		CostMatrix[] costMatrices = new CostMatrix[2];
+		CostMatrix[] costMatrices = new CostMatrix[3];
 
 		costMatrices[0] = null; // no cost matrix
 
 		costMatrices[1] = populateCostMatrix(1.0); //CFN = CFP
 
-		// BestFirst throws an exception when dealing with CFN = 10*CPN
+		costMatrices[2] = populateCostMatrix(10.0); //CFN = 10*CPN
 
 		return costMatrices;
 	}
@@ -145,6 +152,12 @@ public class WekaManager {
 		for(ASSearch featSelection: featSelections){
 			for(Filter sampling: samplings){
 				for(CostMatrix sensitivity: sensitivities){
+					if(featSelection != null && featSelection.getClass().equals(BestFirst.class) &&
+							sensitivity != null && sensitivity.getCell(0, 1).equals(10.0)){
+
+						continue; // BestFirst throws an exception when dealing with weight different from 1
+					}
+
 					Configuration config = new Configuration(classifier, featSelection, sampling, sensitivity);
 					configurations.add(config);
 				}

@@ -158,7 +158,7 @@ public class CSVManager {
 		if(config.getSensitivity() == null) {
 			fw.append("/,");
 		}else {
-			fw.append(config.getCostSensitivity()).append(",");
+			fw.append(config.getSensitivityMethod()).append(",");
 		}
 	}
 }

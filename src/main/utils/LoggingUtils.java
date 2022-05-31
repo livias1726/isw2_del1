@@ -109,7 +109,7 @@ public class LoggingUtils {
         //Sensitivity
         stringBuilder.append("\n\t").append("Cost Matrix: ");
         if(config.getSensitivity() != null) {
-            stringBuilder.append(config.getCostSensitivity());
+            stringBuilder.append(config.getSensitivityMethod());
         }
 
         stringBuilder.append("\n\t").append("Performances: ").append(performance);

@@ -18,7 +18,7 @@ public class Configuration {
     private final Filter sampling;
     private String samplingMethod;
     private final CostMatrix sensitivity;
-    private String costSensitivity;
+    private String sensitivityMethod;
 
     private double trainingPercentage;
     private double defectiveTrainingPercentage;
@@ -49,7 +49,7 @@ public class Configuration {
 
         this.sensitivity = sensitivity;
         if(sensitivity != null){
-            this.costSensitivity = "Sensitive threshold";
+            setSensitivityMethod(sensitivity.toString());
         }
 
         this.performances = new LinkedHashMap<>();
@@ -103,6 +103,8 @@ public class Configuration {
             this.featSelectionMethod = "Backward search";
         }else if(options[dirIndex].equals("1")){
             this.featSelectionMethod = "Forward search";
+        }else{
+            this.featSelectionMethod = "Bi-directional search";
         }
     }
 
@@ -110,8 +112,16 @@ public class Configuration {
         return samplingMethod;
     }
 
-    public String getCostSensitivity() {
-        return costSensitivity;
+    public String getSensitivityMethod() {
+        return sensitivityMethod;
+    }
+
+    private void setSensitivityMethod(String sensitivity) {
+        if(sensitivity.contains("10")){
+            this.sensitivityMethod = "Sensitive learning";
+        }else{
+            this.sensitivityMethod = "Sensitive threshold";
+        }
     }
 
     public double getTrainingPercentage() {

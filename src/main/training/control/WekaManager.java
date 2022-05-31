@@ -8,7 +8,6 @@ import main.training.entity.Configuration;
 import main.utils.LoggingUtils;
 import weka.attributeSelection.ASSearch;
 import weka.classifiers.rules.ZeroR;
-import weka.core.SelectedTag;
 import weka.core.converters.ArffLoader;
 import weka.core.converters.ArffSaver;
 import weka.filters.supervised.attribute.AttributeSelection;
@@ -28,8 +27,6 @@ import weka.filters.Filter;
 import weka.filters.supervised.instance.Resample;
 import weka.filters.supervised.instance.SpreadSubsample;
 
-import static weka.attributeSelection.BestFirst.TAGS_SELECTION;
-
 /**
  * Uses Weka API to perform a machine learning classification on the dataset.
  * */
@@ -47,7 +44,7 @@ public class WekaManager {
 	 * 	- Classifiers
 	 * 	- Cost matrices
 	 * */
-	public WekaManager() {
+	public WekaManager() throws Exception {
 		Classifier[] classifiers = prepareClassifiers();
 		ASSearch[] featSelection = prepareFeaturesSelection();
 		Filter[] samplings = prepareSampling();
@@ -56,7 +53,7 @@ public class WekaManager {
 		configureAnalysis(classifiers, featSelection, samplings, sensitivities);
 	}
 
-	private ASSearch[] prepareFeaturesSelection() {
+	private ASSearch[] prepareFeaturesSelection() throws Exception {
 
 		ASSearch[] featSel = new ASSearch[2];
 
@@ -64,7 +61,8 @@ public class WekaManager {
 		featSel[0] = forwardSearch; // forward search
 
 		BestFirst backwardSearch = new BestFirst();
-		backwardSearch.setDirection(new SelectedTag(0, TAGS_SELECTION)); // backward search
+		//backwardSearch.setDirection(new SelectedTag(0, TAGS_SELECTION)); // backward search
+		backwardSearch.setOptions(new String[]{"-D", "0"});
 		featSel[1] = backwardSearch;
 
 		return featSel;

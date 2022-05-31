@@ -35,15 +35,15 @@ public class Configuration {
 
         this.featSelection = featSelection;
         if(featSelection != null){
-            setFeatSelectionMethod(String.valueOf(featSelection.getOptions()[1]));
+            setFeatSelectionMethod(featSelection.getOptions());
         }
 
         this.sampling = sampling;
         if(sampling != null){
             if(sampling.getClass().equals(Resample.class))
-                this.samplingMethod = "Over sampling";
+                this.samplingMethod = "Over-sampling";
             else{
-                this.samplingMethod = "Under sampling";
+                this.samplingMethod = "Under-sampling";
             }
         }
 
@@ -89,10 +89,19 @@ public class Configuration {
         return featSelectionMethod;
     }
 
-    public void setFeatSelectionMethod(String direction) {
-        if(direction.equals("0")) {
+    public void setFeatSelectionMethod(String[] options) {
+        int dirIndex = 0;
+        for(String opt: options){
+            if(opt.equals("-D")){
+                dirIndex++;
+                break;
+            }
+            dirIndex++;
+        }
+
+        if(options[dirIndex].equals("0")){
             this.featSelectionMethod = "Backward search";
-        }else if(direction.equals("1")){
+        }else if(options[dirIndex].equals("1")){
             this.featSelectionMethod = "Forward search";
         }
     }

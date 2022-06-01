@@ -48,7 +48,7 @@ public class Main {
             }else if(proportionMethod.equals("Incremental")){
                 incrementalAnalysis();
             } else {
-                throw new Exception("Invalid Proportion method.");
+                throw new IOException("Invalid Proportion method.");
             }
 
 		} catch (Exception e) {

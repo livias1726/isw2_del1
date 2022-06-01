@@ -44,7 +44,7 @@ public class WekaManager {
 	 * 	- Classifiers
 	 * 	- Cost matrices
 	 * */
-	public WekaManager() throws Exception {
+	public WekaManager() {
 		Classifier[] classifiers = prepareClassifiers();
 		ASSearch[] featSelection = prepareFeaturesSelection();
 		Filter[] samplings = prepareSampling();
@@ -53,7 +53,7 @@ public class WekaManager {
 		configureAnalysis(classifiers, featSelection, samplings, sensitivities);
 	}
 
-	private ASSearch[] prepareFeaturesSelection() throws Exception {
+	private ASSearch[] prepareFeaturesSelection() {
 
 		ASSearch[] featSel = new ASSearch[2];
 
@@ -61,16 +61,6 @@ public class WekaManager {
 
 		BestFirst forwardSearch = new BestFirst(); // default best first
 		featSel[1] = forwardSearch; // forward search
-		/*
-		BestFirst forwardSearch = new BestFirst(); // default best first
-		featSel[0] = forwardSearch; // forward search
-
-		BestFirst backwardSearch = new BestFirst();
-		//backwardSearch.setDirection(new SelectedTag(0, TAGS_SELECTION)); // backward search
-		backwardSearch.setOptions(new String[]{"-D", "0"});
-		featSel[1] = backwardSearch;
-
-		 */
 
 		return featSel;
 	}

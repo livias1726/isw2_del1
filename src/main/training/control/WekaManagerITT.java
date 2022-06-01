@@ -16,7 +16,7 @@ import java.util.Map;
 
 public class WekaManagerITT extends WekaManager{
 
-    public WekaManagerITT() throws Exception {
+    public WekaManagerITT() {
         super();
     }
 
